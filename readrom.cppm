@@ -9,7 +9,7 @@ public:
   Header header;
 };
 
-std::string_view getNewCode(std::byte licenseeByte);
+std::string_view getNewCode(std::uint16_t licenseeByte);
 void parseRom(Rom &rom);
 
 export std::expected<Rom, std::string_view>
@@ -33,138 +33,153 @@ readRomFile(std::string_view filePath) {
 
   romFile.close();
 
-  rom.header.newLicenseCode = getNewCode(buffer.at(0x145));
+  rom.header.newLicenseCode = getNewCode(static_cast<std::uint16_t>(
+      (static_cast<std::uint16_t>(buffer.at(0x144)) << 8) |
+      static_cast<std::uint16_t>(buffer.at(0x145))));
 
   return rom;
 }
 
-// TO-DO: Actually properly read it. Must read like three bytes or something
-// bruh
-std::string_view getNewCode(std::byte licenseeByte) {
-  std::println("{:x}", std::to_integer<std::uint16_t>(licenseeByte));
-  switch (std::to_integer<std::uint8_t>(licenseeByte)) {
-  case 0x00:
+std::string_view getNewCode(std::uint16_t licenseeByte) {
+
+  switch (licenseeByte) {
+  case static_cast<std::uint16_t>(('0' << 8) | '0'):
     return "NONE";
-  case 0x01:
+
+  case static_cast<std::uint16_t>(('0' << 8) | '1'):
     return "Nintendo Research & Development 1";
-  case 0x08:
+  case static_cast<std::uint16_t>(('0' << 8) | '8'):
     return "Capcom";
-  case 0x13:
+  case static_cast<std::uint16_t>(('1' << 8) | '3'):
     return "EA (Electronic Arts)";
-  case 0x18:
+  case static_cast<std::uint16_t>(('1' << 8) | '8'):
     return "Hudson Soft";
-  case 0x19:
+  case static_cast<std::uint16_t>(('1' << 8) | '9'):
     return "B-AI";
-  case 0x20:
+  case static_cast<std::uint16_t>(('2' << 8) | '0'):
     return "KSS";
-  case 0x22:
+  case static_cast<std::uint16_t>(('2' << 8) | '2'):
     return "Planning Office WADA";
-  case 0x24:
+  case static_cast<std::uint16_t>(('2' << 8) | '4'):
     return "PCM Complete";
-  case 0x25:
+  case static_cast<std::uint16_t>(('2' << 8) | '5'):
     return "San-X";
-  case 0x28:
+  case static_cast<std::uint16_t>(('2' << 8) | '8'):
     return "Kemco";
-  case 0x29:
+  case static_cast<std::uint16_t>(('2' << 8) | '9'):
     return "SETA Corporation";
-  case 0x30:
+  case static_cast<std::uint16_t>(('3' << 8) | '0'):
     return "Viacom";
-  case 0x31:
+  case static_cast<std::uint16_t>(('3' << 8) | '1'):
     return "Nintendo";
-  case 0x32:
+  case static_cast<std::uint16_t>(('3' << 8) | '2'):
     return "Bandai";
-  case 0x33:
+  case static_cast<std::uint16_t>(('3' << 8) | '3'):
     return "Ocean Software/Acclaim Entertainment";
-  case 0x34:
+  case static_cast<std::uint16_t>(('3' << 8) | '4'):
     return "Konami";
-  case 0x35:
+  case static_cast<std::uint16_t>(('3' << 8) | '5'):
     return "HectorSoft";
-  case 0x37:
+  case static_cast<std::uint16_t>(('3' << 8) | '7'):
     return "Taito";
-  case 0x38:
+  case static_cast<std::uint16_t>(('3' << 8) | '8'):
     return "Hudson Soft";
-  case 0x39:
+  case static_cast<std::uint16_t>(('3' << 8) | '9'):
     return "Banpresto";
-  case 0x41:
-    return "Ubisoft";
-  case 0x42:
+  case static_cast<std::uint16_t>(('4' << 8) | '1'):
+    return "Ubi Soft";
+  case static_cast<std::uint16_t>(('4' << 8) | '2'):
     return "Atlus";
-  case 0x44:
+  case static_cast<std::uint16_t>(('4' << 8) | '4'):
     return "Malibu Interactive";
-  case 0x46:
+  case static_cast<std::uint16_t>(('4' << 8) | '6'):
     return "Angel";
-  case 0x47:
+  case static_cast<std::uint16_t>(('4' << 8) | '7'):
     return "Bullet-Proof Software";
-  case 0x49:
+  case static_cast<std::uint16_t>(('4' << 8) | '9'):
     return "Irem";
-  case 0x50:
+
+  case static_cast<std::uint16_t>(('5' << 8) | '0'):
     return "Absolute";
-  case 0x51:
+  case static_cast<std::uint16_t>(('5' << 8) | '1'):
     return "Acclaim Entertainment";
-  case 0x52:
+  case static_cast<std::uint16_t>(('5' << 8) | '2'):
     return "Activision";
-  case 0x53:
+  case static_cast<std::uint16_t>(('5' << 8) | '3'):
     return "Sammy USA Corporation";
-  case 0x54:
+  case static_cast<std::uint16_t>(('5' << 8) | '4'):
     return "Konami";
-  case 0x55:
+  case static_cast<std::uint16_t>(('5' << 8) | '5'):
     return "Hi Tech Expressions";
-  case 0x56:
+  case static_cast<std::uint16_t>(('5' << 8) | '6'):
     return "LJN";
-  case 0x57:
+  case static_cast<std::uint16_t>(('5' << 8) | '7'):
     return "Matchbox";
-  case 0x58:
+  case static_cast<std::uint16_t>(('5' << 8) | '8'):
     return "Mattel";
-  case 0x59:
+  case static_cast<std::uint16_t>(('5' << 8) | '9'):
     return "Milton Bradley Company";
-  case 0x60:
+
+  case static_cast<std::uint16_t>(('6' << 8) | '0'):
     return "Titus Interactive";
-  case 0x61:
+  case static_cast<std::uint16_t>(('6' << 8) | '1'):
     return "Virgin Games Ltd.";
-  case 0x64:
+  case static_cast<std::uint16_t>(('6' << 8) | '4'):
     return "Lucasfilm Games";
-  case 0x67:
+  case static_cast<std::uint16_t>(('6' << 8) | '7'):
     return "Ocean Software";
-  case 0x69:
+  case static_cast<std::uint16_t>(('6' << 8) | '9'):
     return "EA (Electronic Arts)";
-  case 0x70:
+
+  case static_cast<std::uint16_t>(('7' << 8) | '0'):
     return "Infogrames";
-  case 0x71:
+  case static_cast<std::uint16_t>(('7' << 8) | '1'):
     return "Interplay Entertainment";
-  case 0x72:
+  case static_cast<std::uint16_t>(('7' << 8) | '2'):
     return "Broderbund";
-  case 0x73:
+  case static_cast<std::uint16_t>(('7' << 8) | '3'):
     return "Sculptured Software";
-  case 0x75:
+  case static_cast<std::uint16_t>(('7' << 8) | '5'):
     return "The Sales Curve Limited";
-  case 0x78:
+  case static_cast<std::uint16_t>(('7' << 8) | '8'):
     return "THQ";
-  case 0x79:
+  case static_cast<std::uint16_t>(('7' << 8) | '9'):
     return "Accolade";
-  case 0x80:
+
+  case static_cast<std::uint16_t>(('8' << 8) | '0'):
     return "Misawa Entertainment";
-  case 0x83:
+  case static_cast<std::uint16_t>(('8' << 8) | '3'):
     return "LOZC G.";
-  case 0x86:
+  case static_cast<std::uint16_t>(('8' << 8) | '6'):
     return "Tokuma Shoten";
-  case 0x87:
+  case static_cast<std::uint16_t>(('8' << 8) | '7'):
     return "Tsukuda Original";
-  case 0x91:
+
+  case static_cast<std::uint16_t>(('9' << 8) | '1'):
     return "Chunsoft Co.";
-  case 0x92:
+  case static_cast<std::uint16_t>(('9' << 8) | '2'):
     return "Video System";
-  case 0x93:
+  case static_cast<std::uint16_t>(('9' << 8) | '3'):
     return "Ocean Software/Acclaim Entertainment";
-  case 0x95:
+  case static_cast<std::uint16_t>(('9' << 8) | '5'):
     return "Varie";
-  case 0x96:
+  case static_cast<std::uint16_t>(('9' << 8) | '6'):
     return "Yonezawa/S'Pal";
-  case 0x97:
+  case static_cast<std::uint16_t>(('9' << 8) | '7'):
     return "Kaneko";
-  case 0x99:
+  case static_cast<std::uint16_t>(('9' << 8) | '9'):
     return "Pack-In-Video";
-  case 0xA4:
+  case static_cast<std::uint16_t>(('9' << 8) | 'H'):
+    return "Bottom Up";
+
+  case static_cast<std::uint16_t>(('A' << 8) | '4'):
     return "Konami (Yu-Gi-Oh!)";
+
+  case static_cast<std::uint16_t>(('B' << 8) | 'L'):
+    return "MTO";
+
+  case static_cast<std::uint16_t>(('D' << 8) | 'K'):
+    return "Kodansha";
   }
   return "NOTHING FOUND!";
 }
