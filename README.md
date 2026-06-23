@@ -13,9 +13,9 @@ versus what's planned:
 - [x] Header parsing: cartridge destination/region code, old/new licensee
       (publisher) code, and cartridge (MBC) type
 - [x] CPU register model (`Registers` struct: `A`-`L`, flags, `SP`, `PC`)
-
+- [X] ROM size / RAM size
+      
 **Not implemented yet** -- in progress
-- [ ] ROM size / RAM size / header checksum extraction
 - [ ] CPU instruction decode + execution (`CPU::step()` is currently
       declared but has no body)
 - [ ] Memory map / MMU (translating 16-bit addresses to ROM banks, RAM,
@@ -45,19 +45,13 @@ licensee code, cartridge type) and exits -- there's no CPU execution or
 display yet.
 
 ## Known issues / next steps
-
-- The old-licensee-code fallback (checking for the `0x33` sentinel byte to
-  decide whether to use the new 2-character licensee code instead) isn't
-  implemented yet -- `oldLicenseCode` is currently always left at its
-  default value.
-- `main.cpp` doesn't yet check whether `readRomFile` returned a valid
-  result before dereferencing it -- needs a `.has_value()` check before
-  this is safe against malformed/missing files.
+CPU instruction decoding and execution is next.
 
 ## Files
 
 | File | Purpose |
 |---|---|
+|`memliterals.cppm` | Literals for storage capacity |
 | `readrom.cppm` | ROM loading + header parsing |
 | `cpu.cppm` | CPU register model (execution not yet implemented) |
 | `main.cpp` | Entry point / current smoke test |
