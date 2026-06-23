@@ -1,185 +1,605 @@
 export module read_rom;
 import std;
+import memory_literals;
 
-export class Rom {
-public:
-  struct Header {
-    std::string_view newLicenseCode{};
-  };
-  Header header;
+using namespace MemLiteral;
+
+export class Rom
+{
+  public:
+    struct Header
+    {
+        std::string_view newLicenseCode{"NONE"};
+        std::string_view oldLicenseCode{"NONE"};
+        std::string_view destCode{};
+        std::string_view cartType{};
+    };
+    Header header;
 };
 
 std::string_view getNewCode(std::uint16_t licenseeByte);
-void parseRom(Rom &rom);
+std::string_view getOldCode(std::byte licenseeByte);
+std::string_view getDestCode(std::byte licenseeByte);
+std::string_view getCartridgeType(std::byte cartridgeType);
 
-export std::expected<Rom, std::string_view>
-readRomFile(std::string_view filePath) {
-  Rom rom{};
+void parseRom(Rom &rom, std::vector<std::byte> buffer);
 
-  std::ifstream romFile(filePath.data(), std::ios::binary);
-  if (!romFile.is_open()) {
-    return std::unexpected<std::string_view>("ERROR OPENING FILE");
-  }
+export std::expected<Rom, std::string_view> readRomFile(std::string_view filePath)
+{
+    Rom rom{};
 
-  std::filesystem::path romFilePath{filePath};
-  const auto romFileLen = std::filesystem::file_size(romFilePath);
-  if (romFileLen == 0) {
-    return std::unexpected<std::string_view>("FILE IS EMPTY");
-  }
+    std::ifstream romFile(filePath.data(), std::ios::binary);
+    if (!romFile.is_open())
+    {
+        return std::unexpected<std::string_view>("ERROR OPENING FILE");
+    }
 
-  std::vector<std::byte> buffer(romFileLen);
+    std::filesystem::path romFilePath{filePath};
+    const auto romFileLen = std::filesystem::file_size(romFilePath);
+    if (romFileLen == 0)
+    {
+        return std::unexpected<std::string_view>("FILE IS EMPTY");
+    }
 
-  romFile.read(reinterpret_cast<char *>(buffer.data()), romFileLen);
+    std::vector<std::byte> buffer(romFileLen);
 
-  romFile.close();
+    romFile.read(reinterpret_cast<char *>(buffer.data()), romFileLen);
 
-  rom.header.newLicenseCode = getNewCode(static_cast<std::uint16_t>(
-      (static_cast<std::uint16_t>(buffer.at(0x144)) << 8) |
-      static_cast<std::uint16_t>(buffer.at(0x145))));
+    parseRom(rom, buffer);
 
-  return rom;
+    return rom;
 }
 
-std::string_view getNewCode(std::uint16_t licenseeByte) {
+void parseRom(Rom &rom, std::vector<std::byte> buffer)
+{
+    if (rom.header.oldLicenseCode == "NONE")
+    {
+        rom.header.newLicenseCode = getNewCode((std::to_integer<std::uint16_t>(buffer[0x144]) << 8) |
+                                               std::to_integer<std::uint16_t>(buffer[0x145]));
+    }
+    rom.header.destCode = getDestCode(buffer[0x14A]);
+    rom.header.cartType = getCartridgeType(buffer[0x147]);
+}
 
-  switch (licenseeByte) {
-  case static_cast<std::uint16_t>(('0' << 8) | '0'):
-    return "NONE";
+std::string_view getDestCode(std::byte licenseeByte)
+{
+    return std::to_integer<std::uint8_t>(licenseeByte) == 0x00 ? "Japan (and possibly overseas)" : "Overseas Only";
+}
 
-  case static_cast<std::uint16_t>(('0' << 8) | '1'):
-    return "Nintendo Research & Development 1";
-  case static_cast<std::uint16_t>(('0' << 8) | '8'):
-    return "Capcom";
-  case static_cast<std::uint16_t>(('1' << 8) | '3'):
-    return "EA (Electronic Arts)";
-  case static_cast<std::uint16_t>(('1' << 8) | '8'):
-    return "Hudson Soft";
-  case static_cast<std::uint16_t>(('1' << 8) | '9'):
-    return "B-AI";
-  case static_cast<std::uint16_t>(('2' << 8) | '0'):
-    return "KSS";
-  case static_cast<std::uint16_t>(('2' << 8) | '2'):
-    return "Planning Office WADA";
-  case static_cast<std::uint16_t>(('2' << 8) | '4'):
-    return "PCM Complete";
-  case static_cast<std::uint16_t>(('2' << 8) | '5'):
-    return "San-X";
-  case static_cast<std::uint16_t>(('2' << 8) | '8'):
-    return "Kemco";
-  case static_cast<std::uint16_t>(('2' << 8) | '9'):
-    return "SETA Corporation";
-  case static_cast<std::uint16_t>(('3' << 8) | '0'):
-    return "Viacom";
-  case static_cast<std::uint16_t>(('3' << 8) | '1'):
-    return "Nintendo";
-  case static_cast<std::uint16_t>(('3' << 8) | '2'):
-    return "Bandai";
-  case static_cast<std::uint16_t>(('3' << 8) | '3'):
-    return "Ocean Software/Acclaim Entertainment";
-  case static_cast<std::uint16_t>(('3' << 8) | '4'):
-    return "Konami";
-  case static_cast<std::uint16_t>(('3' << 8) | '5'):
-    return "HectorSoft";
-  case static_cast<std::uint16_t>(('3' << 8) | '7'):
-    return "Taito";
-  case static_cast<std::uint16_t>(('3' << 8) | '8'):
-    return "Hudson Soft";
-  case static_cast<std::uint16_t>(('3' << 8) | '9'):
-    return "Banpresto";
-  case static_cast<std::uint16_t>(('4' << 8) | '1'):
-    return "Ubi Soft";
-  case static_cast<std::uint16_t>(('4' << 8) | '2'):
-    return "Atlus";
-  case static_cast<std::uint16_t>(('4' << 8) | '4'):
-    return "Malibu Interactive";
-  case static_cast<std::uint16_t>(('4' << 8) | '6'):
-    return "Angel";
-  case static_cast<std::uint16_t>(('4' << 8) | '7'):
-    return "Bullet-Proof Software";
-  case static_cast<std::uint16_t>(('4' << 8) | '9'):
-    return "Irem";
+std::string_view getCartridgeType(std::byte cartridgeType)
+{
+    switch (static_cast<std::uint8_t>(cartridgeType))
+    {
+    case 0x00:
+        return "ROM ONLY";
 
-  case static_cast<std::uint16_t>(('5' << 8) | '0'):
-    return "Absolute";
-  case static_cast<std::uint16_t>(('5' << 8) | '1'):
-    return "Acclaim Entertainment";
-  case static_cast<std::uint16_t>(('5' << 8) | '2'):
-    return "Activision";
-  case static_cast<std::uint16_t>(('5' << 8) | '3'):
-    return "Sammy USA Corporation";
-  case static_cast<std::uint16_t>(('5' << 8) | '4'):
-    return "Konami";
-  case static_cast<std::uint16_t>(('5' << 8) | '5'):
-    return "Hi Tech Expressions";
-  case static_cast<std::uint16_t>(('5' << 8) | '6'):
-    return "LJN";
-  case static_cast<std::uint16_t>(('5' << 8) | '7'):
-    return "Matchbox";
-  case static_cast<std::uint16_t>(('5' << 8) | '8'):
-    return "Mattel";
-  case static_cast<std::uint16_t>(('5' << 8) | '9'):
-    return "Milton Bradley Company";
+    case 0x01:
+        return "MBC1";
+    case 0x02:
+        return "MBC1+RAM";
+    case 0x03:
+        return "MBC1+RAM+BATTERY";
 
-  case static_cast<std::uint16_t>(('6' << 8) | '0'):
-    return "Titus Interactive";
-  case static_cast<std::uint16_t>(('6' << 8) | '1'):
-    return "Virgin Games Ltd.";
-  case static_cast<std::uint16_t>(('6' << 8) | '4'):
-    return "Lucasfilm Games";
-  case static_cast<std::uint16_t>(('6' << 8) | '7'):
-    return "Ocean Software";
-  case static_cast<std::uint16_t>(('6' << 8) | '9'):
-    return "EA (Electronic Arts)";
+    case 0x05:
+        return "MBC2";
+    case 0x06:
+        return "MBC2+BATTERY";
 
-  case static_cast<std::uint16_t>(('7' << 8) | '0'):
-    return "Infogrames";
-  case static_cast<std::uint16_t>(('7' << 8) | '1'):
-    return "Interplay Entertainment";
-  case static_cast<std::uint16_t>(('7' << 8) | '2'):
-    return "Broderbund";
-  case static_cast<std::uint16_t>(('7' << 8) | '3'):
-    return "Sculptured Software";
-  case static_cast<std::uint16_t>(('7' << 8) | '5'):
-    return "The Sales Curve Limited";
-  case static_cast<std::uint16_t>(('7' << 8) | '8'):
-    return "THQ";
-  case static_cast<std::uint16_t>(('7' << 8) | '9'):
-    return "Accolade";
+    case 0x08:
+        return "ROM+RAM";
+    case 0x09:
+        return "ROM+RAM+BATTERY";
 
-  case static_cast<std::uint16_t>(('8' << 8) | '0'):
-    return "Misawa Entertainment";
-  case static_cast<std::uint16_t>(('8' << 8) | '3'):
-    return "LOZC G.";
-  case static_cast<std::uint16_t>(('8' << 8) | '6'):
-    return "Tokuma Shoten";
-  case static_cast<std::uint16_t>(('8' << 8) | '7'):
-    return "Tsukuda Original";
+    case 0x0B:
+        return "MMM01";
+    case 0x0C:
+        return "MMM01+RAM";
+    case 0x0D:
+        return "MMM01+RAM+BATTERY";
 
-  case static_cast<std::uint16_t>(('9' << 8) | '1'):
-    return "Chunsoft Co.";
-  case static_cast<std::uint16_t>(('9' << 8) | '2'):
-    return "Video System";
-  case static_cast<std::uint16_t>(('9' << 8) | '3'):
-    return "Ocean Software/Acclaim Entertainment";
-  case static_cast<std::uint16_t>(('9' << 8) | '5'):
-    return "Varie";
-  case static_cast<std::uint16_t>(('9' << 8) | '6'):
-    return "Yonezawa/S'Pal";
-  case static_cast<std::uint16_t>(('9' << 8) | '7'):
-    return "Kaneko";
-  case static_cast<std::uint16_t>(('9' << 8) | '9'):
-    return "Pack-In-Video";
-  case static_cast<std::uint16_t>(('9' << 8) | 'H'):
-    return "Bottom Up";
+    case 0x0F:
+        return "MBC3+TIMER+BATTERY";
+    case 0x10:
+        return "MBC3+TIMER+RAM+BATTERY";
+    case 0x11:
+        return "MBC3";
+    case 0x12:
+        return "MBC3+RAM";
+    case 0x13:
+        return "MBC3+RAM+BATTERY";
 
-  case static_cast<std::uint16_t>(('A' << 8) | '4'):
-    return "Konami (Yu-Gi-Oh!)";
+    case 0x19:
+        return "MBC5";
+    case 0x1A:
+        return "MBC5+RAM";
+    case 0x1B:
+        return "MBC5+RAM+BATTERY";
+    case 0x1C:
+        return "MBC5+RUMBLE";
+    case 0x1D:
+        return "MBC5+RUMBLE+RAM";
+    case 0x1E:
+        return "MBC5+RUMBLE+RAM+BATTERY";
 
-  case static_cast<std::uint16_t>(('B' << 8) | 'L'):
-    return "MTO";
+    case 0x20:
+        return "MBC6";
 
-  case static_cast<std::uint16_t>(('D' << 8) | 'K'):
-    return "Kodansha";
-  }
-  return "NOTHING FOUND!";
+    case 0x22:
+        return "MBC7+SENSOR+RUMBLE+RAM+BATTERY";
+
+    case 0xFC:
+        return "POCKET CAMERA";
+    case 0xFD:
+        return "BANDAI TAMA5";
+    case 0xFE:
+        return "HuC3";
+    case 0xFF:
+        return "HuC1+RAM+BATTERY";
+    }
+
+    return "UNKNOWN";
+}
+
+std::string_view getOldCode(std::byte licenseeByte)
+{
+    switch (static_cast<std::uint8_t>(licenseeByte))
+    {
+    case 0x00:
+        return "None";
+    case 0x01:
+        return "Nintendo";
+    case 0x08:
+        return "Capcom";
+    case 0x09:
+        return "HOT-B";
+    case 0x0A:
+        return "Jaleco";
+    case 0x0B:
+        return "Coconuts Japan";
+    case 0x0C:
+        return "Elite Systems";
+
+    case 0x13:
+        return "EA (Electronic Arts)";
+    case 0x18:
+        return "Hudson Soft";
+    case 0x19:
+        return "ITC Entertainment";
+    case 0x1A:
+        return "Yanoman";
+    case 0x1D:
+        return "Japan Clary";
+    case 0x1F:
+        return "Virgin Games Ltd.";
+
+    case 0x24:
+        return "PCM Complete";
+    case 0x25:
+        return "San-X";
+    case 0x28:
+        return "Kemco";
+    case 0x29:
+        return "SETA Corporation";
+
+    case 0x30:
+        return "Infogrames";
+    case 0x31:
+        return "Nintendo";
+    case 0x32:
+        return "Bandai";
+    case 0x33:
+        return "NONE";
+    case 0x34:
+        return "Konami";
+    case 0x35:
+        return "HectorSoft";
+    case 0x38:
+        return "Capcom";
+    case 0x39:
+        return "Banpresto";
+    case 0x3C:
+        return "Entertainment Interactive";
+    case 0x3E:
+        return "Gremlin";
+
+    case 0x41:
+        return "Ubi Soft";
+    case 0x42:
+        return "Atlus";
+    case 0x44:
+        return "Malibu Interactive";
+    case 0x46:
+        return "Angel";
+    case 0x47:
+        return "Spectrum HoloByte";
+    case 0x49:
+        return "Irem";
+    case 0x4A:
+        return "Virgin Games Ltd.";
+    case 0x4D:
+        return "Malibu Interactive";
+    case 0x4F:
+        return "U.S. Gold";
+
+    case 0x50:
+        return "Absolute";
+    case 0x51:
+        return "Acclaim Entertainment";
+    case 0x52:
+        return "Activision";
+    case 0x53:
+        return "Sammy USA Corporation";
+    case 0x54:
+        return "GameTek";
+    case 0x55:
+        return "Park Place";
+    case 0x56:
+        return "LJN";
+    case 0x57:
+        return "Matchbox";
+    case 0x59:
+        return "Milton Bradley Company";
+    case 0x5A:
+        return "Mindscape";
+    case 0x5B:
+        return "Romstar";
+    case 0x5C:
+        return "Naxat Soft";
+    case 0x5D:
+        return "Tradewest";
+
+    case 0x60:
+        return "Titus Interactive";
+    case 0x61:
+        return "Virgin Games Ltd.";
+    case 0x67:
+        return "Ocean Software";
+    case 0x69:
+        return "EA (Electronic Arts)";
+    case 0x6E:
+        return "Elite Systems";
+    case 0x6F:
+        return "Electro Brain";
+
+    case 0x70:
+        return "Infogrames";
+    case 0x71:
+        return "Interplay Entertainment";
+    case 0x72:
+        return "Broderbund";
+    case 0x73:
+        return "Sculptured Software";
+    case 0x75:
+        return "The Sales Curve Limited";
+    case 0x78:
+        return "THQ";
+    case 0x79:
+        return "Accolade";
+    case 0x7A:
+        return "Triffix Entertainment";
+    case 0x7C:
+        return "MicroProse";
+    case 0x7F:
+        return "Kemco";
+
+    case 0x80:
+        return "Misawa Entertainment";
+    case 0x83:
+        return "LOZC G.";
+    case 0x86:
+        return "Tokuma Shoten";
+    case 0x8B:
+        return "Bullet-Proof Software";
+    case 0x8C:
+        return "Vic Tokai Corp.";
+    case 0x8E:
+        return "Ape Inc.";
+    case 0x8F:
+        return "I'Max";
+
+    case 0x91:
+        return "Chunsoft Co.";
+    case 0x92:
+        return "Video System";
+    case 0x93:
+        return "Tsubaraya Productions";
+    case 0x95:
+        return "Varie";
+    case 0x96:
+        return "Yonezawa/S'Pal";
+    case 0x97:
+        return "Kemco";
+    case 0x99:
+        return "Arc";
+    case 0x9A:
+        return "Nihon Bussan";
+    case 0x9B:
+        return "Tecmo";
+    case 0x9C:
+        return "Imagineer";
+    case 0x9D:
+        return "Banpresto";
+    case 0x9F:
+        return "Nova";
+
+    case 0xA1:
+        return "Hori Electric";
+    case 0xA2:
+        return "Bandai";
+    case 0xA4:
+        return "Konami";
+    case 0xA6:
+        return "Kawada";
+    case 0xA7:
+        return "Takara";
+    case 0xA9:
+        return "Technos Japan";
+    case 0xAA:
+        return "Broderbund";
+    case 0xAC:
+        return "Toei Animation";
+    case 0xAD:
+        return "Toho";
+    case 0xAF:
+        return "Namco";
+
+    case 0xB0:
+        return "Acclaim Entertainment";
+    case 0xB1:
+        return "ASCII Corporation or Nexsoft";
+    case 0xB2:
+        return "Bandai";
+    case 0xB4:
+        return "Square Enix";
+    case 0xB6:
+        return "HAL Laboratory";
+    case 0xB7:
+        return "SNK";
+    case 0xB9:
+        return "Pony Canyon";
+    case 0xBA:
+        return "Culture Brain";
+    case 0xBB:
+        return "Sunsoft";
+    case 0xBD:
+        return "Sony Imagesoft";
+    case 0xBF:
+        return "Sammy Corporation";
+
+    case 0xC0:
+        return "Taito";
+    case 0xC2:
+        return "Kemco";
+    case 0xC3:
+        return "Square";
+    case 0xC4:
+        return "Tokuma Shoten";
+    case 0xC5:
+        return "Data East";
+    case 0xC6:
+        return "Tonkin House";
+    case 0xC8:
+        return "Koei";
+    case 0xC9:
+        return "UFL";
+    case 0xCA:
+        return "Ultra Games";
+    case 0xCB:
+        return "VAP, Inc.";
+    case 0xCC:
+        return "Use Corporation";
+    case 0xCD:
+        return "Meldac";
+    case 0xCE:
+        return "Pony Canyon";
+    case 0xCF:
+        return "Angel";
+
+    case 0xD0:
+        return "Taito";
+    case 0xD1:
+        return "SOFEL";
+    case 0xD2:
+        return "Quest";
+    case 0xD3:
+        return "Sigma Enterprises";
+    case 0xD4:
+        return "ASK Kodansha Co.";
+    case 0xD6:
+        return "Naxat Soft";
+    case 0xD7:
+        return "Copya System";
+    case 0xD9:
+        return "Banpresto";
+    case 0xDA:
+        return "Tomy";
+    case 0xDB:
+        return "LJN";
+    case 0xDD:
+        return "Nippon Computer Systems";
+    case 0xDE:
+        return "Human Ent.";
+    case 0xDF:
+        return "Altron";
+
+    case 0xE0:
+        return "Jaleco";
+    case 0xE1:
+        return "Towa Chiki";
+    case 0xE2:
+        return "Yutaka";
+    case 0xE3:
+        return "Varie";
+    case 0xE5:
+        return "Epoch";
+    case 0xE7:
+        return "Athena";
+    case 0xE8:
+        return "Asmik Ace Entertainment";
+    case 0xE9:
+        return "Natsume";
+    case 0xEA:
+        return "King Records";
+    case 0xEB:
+        return "Atlus";
+    case 0xEC:
+        return "Epic/Sony Records";
+    case 0xEE:
+        return "IGS";
+
+    case 0xF0:
+        return "A Wave";
+    case 0xF3:
+        return "Extreme Entertainment";
+
+    case 0xFF:
+        return "LJN";
+    }
+
+    return "UNKNOWN";
+}
+
+std::string_view getNewCode(std::uint16_t licenseeByte)
+{
+
+    switch (licenseeByte)
+    {
+    case static_cast<std::uint16_t>(('0' << 8) | '0'):
+        return "NONE";
+    case static_cast<std::uint16_t>(('0' << 8) | '1'):
+        return "Nintendo Research & Development 1";
+    case static_cast<std::uint16_t>(('0' << 8) | '8'):
+        return "Capcom";
+    case static_cast<std::uint16_t>(('1' << 8) | '3'):
+        return "EA (Electronic Arts)";
+    case static_cast<std::uint16_t>(('1' << 8) | '8'):
+        return "Hudson Soft";
+    case static_cast<std::uint16_t>(('1' << 8) | '9'):
+        return "B-AI";
+    case static_cast<std::uint16_t>(('2' << 8) | '0'):
+        return "KSS";
+    case static_cast<std::uint16_t>(('2' << 8) | '2'):
+        return "Planning Office WADA";
+    case static_cast<std::uint16_t>(('2' << 8) | '4'):
+        return "PCM Complete";
+    case static_cast<std::uint16_t>(('2' << 8) | '5'):
+        return "San-X";
+    case static_cast<std::uint16_t>(('2' << 8) | '8'):
+        return "Kemco";
+    case static_cast<std::uint16_t>(('2' << 8) | '9'):
+        return "SETA Corporation";
+    case static_cast<std::uint16_t>(('3' << 8) | '0'):
+        return "Viacom";
+    case static_cast<std::uint16_t>(('3' << 8) | '1'):
+        return "Nintendo";
+    case static_cast<std::uint16_t>(('3' << 8) | '2'):
+        return "Bandai";
+    case static_cast<std::uint16_t>(('3' << 8) | '3'):
+        return "Ocean Software/Acclaim Entertainment";
+    case static_cast<std::uint16_t>(('3' << 8) | '4'):
+        return "Konami";
+    case static_cast<std::uint16_t>(('3' << 8) | '5'):
+        return "HectorSoft";
+    case static_cast<std::uint16_t>(('3' << 8) | '7'):
+        return "Taito";
+    case static_cast<std::uint16_t>(('3' << 8) | '8'):
+        return "Hudson Soft";
+    case static_cast<std::uint16_t>(('3' << 8) | '9'):
+        return "Banpresto";
+    case static_cast<std::uint16_t>(('4' << 8) | '1'):
+        return "Ubi Soft";
+    case static_cast<std::uint16_t>(('4' << 8) | '2'):
+        return "Atlus";
+    case static_cast<std::uint16_t>(('4' << 8) | '4'):
+        return "Malibu Interactive";
+    case static_cast<std::uint16_t>(('4' << 8) | '6'):
+        return "Angel";
+    case static_cast<std::uint16_t>(('4' << 8) | '7'):
+        return "Bullet-Proof Software";
+    case static_cast<std::uint16_t>(('4' << 8) | '9'):
+        return "Irem";
+
+    case static_cast<std::uint16_t>(('5' << 8) | '0'):
+        return "Absolute";
+    case static_cast<std::uint16_t>(('5' << 8) | '1'):
+        return "Acclaim Entertainment";
+    case static_cast<std::uint16_t>(('5' << 8) | '2'):
+        return "Activision";
+    case static_cast<std::uint16_t>(('5' << 8) | '3'):
+        return "Sammy USA Corporation";
+    case static_cast<std::uint16_t>(('5' << 8) | '4'):
+        return "Konami";
+    case static_cast<std::uint16_t>(('5' << 8) | '5'):
+        return "Hi Tech Expressions";
+    case static_cast<std::uint16_t>(('5' << 8) | '6'):
+        return "LJN";
+    case static_cast<std::uint16_t>(('5' << 8) | '7'):
+        return "Matchbox";
+    case static_cast<std::uint16_t>(('5' << 8) | '8'):
+        return "Mattel";
+    case static_cast<std::uint16_t>(('5' << 8) | '9'):
+        return "Milton Bradley Company";
+
+    case static_cast<std::uint16_t>(('6' << 8) | '0'):
+        return "Titus Interactive";
+    case static_cast<std::uint16_t>(('6' << 8) | '1'):
+        return "Virgin Games Ltd.";
+    case static_cast<std::uint16_t>(('6' << 8) | '4'):
+        return "Lucasfilm Games";
+    case static_cast<std::uint16_t>(('6' << 8) | '7'):
+        return "Ocean Software";
+    case static_cast<std::uint16_t>(('6' << 8) | '9'):
+        return "EA (Electronic Arts)";
+
+    case static_cast<std::uint16_t>(('7' << 8) | '0'):
+        return "Infogrames";
+    case static_cast<std::uint16_t>(('7' << 8) | '1'):
+        return "Interplay Entertainment";
+    case static_cast<std::uint16_t>(('7' << 8) | '2'):
+        return "Broderbund";
+    case static_cast<std::uint16_t>(('7' << 8) | '3'):
+        return "Sculptured Software";
+    case static_cast<std::uint16_t>(('7' << 8) | '5'):
+        return "The Sales Curve Limited";
+    case static_cast<std::uint16_t>(('7' << 8) | '8'):
+        return "THQ";
+    case static_cast<std::uint16_t>(('7' << 8) | '9'):
+        return "Accolade";
+
+    case static_cast<std::uint16_t>(('8' << 8) | '0'):
+        return "Misawa Entertainment";
+    case static_cast<std::uint16_t>(('8' << 8) | '3'):
+        return "LOZC G.";
+    case static_cast<std::uint16_t>(('8' << 8) | '6'):
+        return "Tokuma Shoten";
+    case static_cast<std::uint16_t>(('8' << 8) | '7'):
+        return "Tsukuda Original";
+
+    case static_cast<std::uint16_t>(('9' << 8) | '1'):
+        return "Chunsoft Co.";
+    case static_cast<std::uint16_t>(('9' << 8) | '2'):
+        return "Video System";
+    case static_cast<std::uint16_t>(('9' << 8) | '3'):
+        return "Ocean Software/Acclaim Entertainment";
+    case static_cast<std::uint16_t>(('9' << 8) | '5'):
+        return "Varie";
+    case static_cast<std::uint16_t>(('9' << 8) | '6'):
+        return "Yonezawa/S'Pal";
+    case static_cast<std::uint16_t>(('9' << 8) | '7'):
+        return "Kaneko";
+    case static_cast<std::uint16_t>(('9' << 8) | '9'):
+        return "Pack-In-Video";
+    case static_cast<std::uint16_t>(('9' << 8) | 'H'):
+        return "Bottom Up";
+
+    case static_cast<std::uint16_t>(('A' << 8) | '4'):
+        return "Konami (Yu-Gi-Oh!)";
+
+    case static_cast<std::uint16_t>(('B' << 8) | 'L'):
+        return "MTO";
+
+    case static_cast<std::uint16_t>(('D' << 8) | 'K'):
+        return "Kodansha";
+    }
+    return "NOTHING FOUND!";
 }

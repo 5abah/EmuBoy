@@ -28,5 +28,6 @@ target_sources(GameBoyEmu
     FILE_SET cxx_modules TYPE CXX_MODULES FILES
       cpu.cppm
       readrom.cppm
+      memliterals.cppm
 )
 
