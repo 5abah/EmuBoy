@@ -23,7 +23,7 @@ versus what's planned:
 - [ ] PPU (graphics) emulation
 - [ ] Input handling
 - [ ] Bare-metal STM32 Nucleo port
-- [ ] 
+
 ## Build
 
 Requires a compiler with C++23 module support (recent Clang or MSVC; GCC
