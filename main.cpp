@@ -1,5 +1,5 @@
 import std;
-import cpu;
+import gameboy;
 import read_rom;
 
 int main(int argc, char *argv[])
@@ -10,7 +10,7 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    auto rom = readRomFile(argv[1]);
+    auto rom = readCartridgeFile(argv[1]);
 
     if (!rom)
     {
@@ -22,5 +22,5 @@ int main(int argc, char *argv[])
     std::println("Old Licensee Code: {}", rom->header.oldLicenseCode);
     std::println("New Licensee Code: {}", rom->header.newLicenseCode);
     std::println("Cartridge type: {}", rom->header.cartType);
-    std::println("Rom Size: {}\nRam Size: {}", rom->header.romSize.capacity(), rom->header.ramSize.capacity());
+    std::println("Cartridge Size: {}\nRam Size: {}", rom->header.romSize.capacity(), rom->header.ramSize.capacity());
 }

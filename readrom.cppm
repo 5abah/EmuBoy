@@ -4,7 +4,7 @@ import memory_literals;
 
 using namespace MemLiteral;
 
-export class Rom
+export class Cartridge
 {
   public:
     struct Header
@@ -23,14 +23,14 @@ std::string_view getNewCode(std::uint16_t licenseeByte);
 std::string_view getOldCode(std::byte licenseeByte);
 std::string_view getDestCode(std::byte destCodeByte);
 std::string_view getCartridgeType(std::byte cartridgeType);
-std::vector<std::array<std::byte, 16_KiB>> getRomSz(std::byte romSzByte);
+std::vector<std::array<std::byte, 16_KiB>> getCartridgeSz(std::byte romSzByte);
 std::vector<std::array<std::byte, 8_KiB>> getRamSz(std::byte ramSzByte);
 
-void parseRom(Rom &rom, std::vector<std::byte> buffer);
+void parseCartridge(Cartridge &rom, std::vector<std::byte> buffer);
 
-export std::expected<Rom, std::string_view> readRomFile(std::string_view filePath)
+export std::expected<Cartridge, std::string_view> readCartridgeFile(std::string_view filePath)
 {
-    Rom rom{};
+    Cartridge rom{};
 
     std::ifstream romFile(filePath.data(), std::ios::binary);
     if (!romFile.is_open())
@@ -49,12 +49,12 @@ export std::expected<Rom, std::string_view> readRomFile(std::string_view filePat
 
     romFile.read(reinterpret_cast<char *>(buffer.data()), romFileLen);
 
-    parseRom(rom, buffer);
+    parseCartridge(rom, buffer);
 
     return rom;
 }
 
-void parseRom(Rom &rom, std::vector<std::byte> buffer)
+void parseCartridge(Cartridge &rom, std::vector<std::byte> buffer)
 {
     if (rom.header.oldLicenseCode == "NONE")
     {
@@ -64,11 +64,11 @@ void parseRom(Rom &rom, std::vector<std::byte> buffer)
 
     rom.header.destCode = getDestCode(buffer[0x14A]);
     rom.header.cartType = getCartridgeType(buffer[0x147]);
-    rom.header.romSize = getRomSz(buffer[0x148]);
+    rom.header.romSize = getCartridgeSz(buffer[0x148]);
     rom.header.ramSize = getRamSz(buffer[0x149]);
 }
 
-std::vector<std::array<std::byte, 16_KiB>> getRomSz(std::byte romSzByte)
+std::vector<std::array<std::byte, 16_KiB>> getCartridgeSz(std::byte romSzByte)
 {
     std::vector<std::array<std::byte, 16_KiB>> romBank16k(0);
     switch (std::to_integer<std::uint8_t>(romSzByte))
@@ -306,7 +306,7 @@ std::string_view getOldCode(std::byte licenseeByteOld)
     case 0x5A:
         return "Mindscape";
     case 0x5B:
-        return "Romstar";
+        return "Cartridgestar";
     case 0x5C:
         return "Naxat Soft";
     case 0x5D:
