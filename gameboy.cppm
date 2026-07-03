@@ -2,6 +2,62 @@ export module gameboy;
 import std;
 import read_rom;
 
+export {
+    enum class REG // 8 bit registers
+    {
+        B,
+        C,
+        D,
+        E,
+        H,
+        L,
+        HL,
+        A
+    };
+    enum class REGSP // register pair along with SP
+    {
+        BC,
+        DE,
+        HL,
+        SP
+    };
+    enum class REGAF // register pair along with AF
+    {
+        BC,
+        DE,
+        HL,
+        AF
+    };
+    enum class CC // flag conditions
+    {
+        NZ,
+        Z,
+        NC,
+        C
+    };
+    enum class ALU
+    {
+        ADD,
+        ADC,
+        SUB,
+        SBC,
+        AND,
+        XOR,
+        OR,
+        CP
+    };
+    enum class ROT
+    {
+        RLC,
+        RRC,
+        RL,
+        RR,
+        SLA,
+        SRA,
+        SWAP,
+        SRL
+    };
+}
 class Registers
 {
   public:
