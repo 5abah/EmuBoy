@@ -7,26 +7,27 @@ using namespace MemLiteral;
 export class Cartridge
 {
   public:
+    std::vector<std::uint8_t> instr{}; // simply a test thing prolly not true
     struct Header
     {
         std::string_view newLicenseCode{"NONE"};
         std::string_view oldLicenseCode{"NONE"};
         std::string_view destCode{};
         std::string_view cartType{};
-        std::vector<std::array<std::byte, 16_KiB>> romSize{};
-        std::vector<std::array<std::byte, 8_KiB>> ramSize{};
+        std::vector<std::array<std::uint8_t, 16_KiB>> romSize{};
+        std::vector<std::array<std::uint8_t, 8_KiB>> ramSize{};
     };
     Header header;
 };
 
 std::string_view getNewCode(std::uint16_t licenseeByte);
-std::string_view getOldCode(std::byte licenseeByte);
-std::string_view getDestCode(std::byte destCodeByte);
-std::string_view getCartridgeType(std::byte cartridgeType);
-std::vector<std::array<std::byte, 16_KiB>> getCartridgeSz(std::byte romSzByte);
-std::vector<std::array<std::byte, 8_KiB>> getRamSz(std::byte ramSzByte);
+std::string_view getOldCode(std::uint8_t licenseeByte);
+std::string_view getDestCode(std::uint8_t destCodeByte);
+std::string_view getCartridgeType(std::uint8_t cartridgeType);
+std::vector<std::array<std::uint8_t, 16_KiB>> getCartridgeSz(std::uint8_t romSzByte);
+std::vector<std::array<std::uint8_t, 8_KiB>> getRamSz(std::uint8_t ramSzByte);
 
-void parseCartridge(Cartridge &rom, std::vector<std::byte> buffer);
+void parseCartridge(Cartridge &rom, std::vector<std::uint8_t> buffer);
 
 export std::expected<Cartridge, std::string_view> readCartridgeFile(std::string_view filePath)
 {
@@ -45,21 +46,20 @@ export std::expected<Cartridge, std::string_view> readCartridgeFile(std::string_
         return std::unexpected<std::string_view>("FILE IS EMPTY");
     }
 
-    std::vector<std::byte> buffer(romFileLen);
+    std::vector<std::uint8_t> buffer(romFileLen);
 
     romFile.read(reinterpret_cast<char *>(buffer.data()), romFileLen);
 
     parseCartridge(rom, buffer);
-
+    rom.instr = buffer;
     return rom;
 }
 
-void parseCartridge(Cartridge &rom, std::vector<std::byte> buffer)
+void parseCartridge(Cartridge &rom, std::vector<std::uint8_t> buffer)
 {
     if (rom.header.oldLicenseCode == "NONE")
     {
-        rom.header.newLicenseCode = getNewCode((std::to_integer<std::uint16_t>(buffer[0x144]) << 8) |
-                                               std::to_integer<std::uint16_t>(buffer[0x145]));
+        rom.header.newLicenseCode = getNewCode(buffer[0x144] << 8 | buffer[0x145]);
     }
 
     rom.header.destCode = getDestCode(buffer[0x14A]);
@@ -68,10 +68,10 @@ void parseCartridge(Cartridge &rom, std::vector<std::byte> buffer)
     rom.header.ramSize = getRamSz(buffer[0x149]);
 }
 
-std::vector<std::array<std::byte, 16_KiB>> getCartridgeSz(std::byte romSzByte)
+std::vector<std::array<std::uint8_t, 16_KiB>> getCartridgeSz(std::uint8_t romSzByte)
 {
-    std::vector<std::array<std::byte, 16_KiB>> romBank16k(0);
-    switch (std::to_integer<std::uint8_t>(romSzByte))
+    std::vector<std::array<std::uint8_t, 16_KiB>> romBank16k(0);
+    switch (romSzByte)
     {
     case 0:
         romBank16k.resize(2);
@@ -104,10 +104,10 @@ std::vector<std::array<std::byte, 16_KiB>> getCartridgeSz(std::byte romSzByte)
     return romBank16k;
 }
 
-std::vector<std::array<std::byte, 8_KiB>> getRamSz(std::byte ramSzByte)
+std::vector<std::array<std::uint8_t, 8_KiB>> getRamSz(std::uint8_t ramSzByte)
 {
-    std::vector<std::array<std::byte, 8_KiB>> ramBank8k(0);
-    switch (std::to_integer<std::uint8_t>(ramSzByte))
+    std::vector<std::array<std::uint8_t, 8_KiB>> ramBank8k(0);
+    switch (ramSzByte)
     {
     case 2:
         ramBank8k.resize(1);
@@ -125,14 +125,14 @@ std::vector<std::array<std::byte, 8_KiB>> getRamSz(std::byte ramSzByte)
     return ramBank8k;
 }
 
-std::string_view getDestCode(std::byte destCodeByte)
+std::string_view getDestCode(std::uint8_t destCodeByte)
 {
-    return std::to_integer<std::uint8_t>(destCodeByte) == 0x00 ? "Japan (and possibly overseas)" : "Overseas Only";
+    return (destCodeByte) == 0x00 ? "Japan (and possibly overseas)" : "Overseas Only";
 }
 
-std::string_view getCartridgeType(std::byte cartridgeType)
+std::string_view getCartridgeType(std::uint8_t cartridgeType)
 {
-    switch (static_cast<std::uint8_t>(cartridgeType))
+    switch (cartridgeType)
     {
     case 0x00:
         return "ROM ONLY";
@@ -204,9 +204,9 @@ std::string_view getCartridgeType(std::byte cartridgeType)
     return "UNKNOWN";
 }
 
-std::string_view getOldCode(std::byte licenseeByteOld)
+std::string_view getOldCode(std::uint8_t licenseeByteOld)
 {
-    switch (static_cast<std::uint8_t>(licenseeByteOld))
+    switch (licenseeByteOld)
     {
     case 0x00:
         return "None";

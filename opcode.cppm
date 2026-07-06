@@ -4,7 +4,19 @@ import gameboy;
 
 void decodeOpcode(GameBoy &gb)
 {
-    for (size_t i =)
+    auto &PC = gb.cpu.regs.PC;
+    auto &instr = gb.rom.instr;
+
+    std::uint8_t x{}, y{}, z{}, q{}, p{};
+    std::uint8_t opcode{};
+    while (true)
+    {
+        opcode = instr[PC++];
+        x = (opcode >> 6) & 0x03;
+        y = (opcode >> 3) & 0x07;
+        z = opcode & 0x07;
+        p = y >> 1;
+        q = y % 2;
 
         switch (x)
         {
@@ -15,9 +27,18 @@ void decodeOpcode(GameBoy &gb)
                 switch (y)
                 {
                 case 0:
-                    // nop
-                case 1:
+                    break;
+                case 1: {
+                    // LD(nn), SP
+                    std::uint8_t nnLo = instr[PC++];
+                    std::uint8_t nnHi = instr[PC++];
+                    std::uint16_t addr = nnLo | (nnHi << 8);
+                    gb.memory[addr] = getLo(gb.cpu.regs.regPsp[+REGSP::SP]);
+                    gb.memory[addr + 1] = getHi(gb.cpu.regs.regPsp[+REGSP::SP]);
+                    break;
+                }
                 case 2:
+                    break;
                 case 3:
                 default:
                 }
@@ -139,4 +160,5 @@ void decodeOpcode(GameBoy &gb)
                     // RST y*8
                 }
         }
+    }
 }
