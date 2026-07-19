@@ -1,1 +1,2 @@
 // mbc
+export module mbc;
