@@ -1,7 +1,7 @@
 // bus
 export module bus;
 import std;
-import memory_literals;
+import memliterals;
 import ppu;
 import apu;
 import timer;
@@ -15,11 +15,11 @@ export class Bus
 
   public:
     PPU ppu;
-    APU apu;
+    // APU apu;
     Timer timer;
     Joypad joypad;
-    Cartridge cartridge;
-    Interrupts interrupts;
+    // Cartridge cartridge;
+    // Interrupts interrupts;
     const std::uint8_t &read(std::uint16_t pcIndex) const;
     void write(std::uint16_t pcIndex, std::uint8_t byte2Write);
 };

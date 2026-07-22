@@ -3,5 +3,5 @@ export module cartridge;
 
 class Cartridge
 {
-    MBC mbc;
+    // MBC mbc;
 };

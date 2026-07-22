@@ -1,4 +1,4 @@
-export module memory_literals;
+export module memliterals;
 import std;
 
 export namespace MemLiteral
