@@ -62,6 +62,8 @@ export class CPU
         std::uint16_t PC{0x100};
         std::bitset<4> flag{};
 
+        void flagCheck(std::uint16_t result, std::uint8_t a, std::uint8_t b, std::uint8_t carryIn,
+                       Registers::ALU operation);
         std::uint8_t getLo(std::uint16_t reg);
         std::uint8_t getHi(std::uint16_t reg);
         std::uint16_t get16(std::uint8_t pair);
@@ -73,7 +75,7 @@ export class CPU
 
     Bus &bus;
     Registers regs{};
-    CPU(Bus busGet) : bus{busGet} {};
+    CPU(Bus &busGet) : bus{busGet} {};
 
     std::uint8_t IME{0}; // Interrupt Master Enable flag
     std::uint8_t step();
@@ -95,8 +97,8 @@ export class CPU
     std::uint8_t incRegPair(std::uint8_t regIndexP);                                          // INC rr
     std::uint8_t decRegOrMemory(std::uint8_t regIndexY);                                      // DEC
     std::uint8_t decRegPair(std::uint8_t regIndexP);                                          // DEC rr
-    std::uint8_t pushRegPair();                                                               // PUSH
-    std::uint8_t popRegPair();                                                                // POP
+    std::uint8_t pushRegPair(std::uint8_t regIndexP);                                         // PUSH
+    std::uint8_t popRegPair(std::uint8_t regIndexP);                                          // POP
     std::uint8_t conditionalJump(std::uint8_t conditionIndexY);                               // JP cc
     std::uint8_t relativeConditionalJump(std::uint8_t conditionIndexY);                       // JR cc
     std::uint8_t callConditional();                                                           // CALL cc
@@ -337,8 +339,8 @@ std::uint8_t CPU::step()
                 }
             }
             else
-                // pop rp2[p]
-                break; // ADDED: this now attaches to the dangling else as its statement
+                cycleCount += popRegPair(p);
+            break; // ADDED: this now attaches to the dangling else as its statement
         case 2:
             switch (y)
             {
@@ -364,6 +366,15 @@ std::uint8_t CPU::step()
             break; // ADDED
         case 4:
         case 5:
+            if (q)
+            {
+                if (p == 0)
+                {
+                    // call nn
+                }
+            }
+            else
+                pushRegPair(p);
         case 6:
             // alu[y] n
             break; // ADDED

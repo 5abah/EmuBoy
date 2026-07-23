@@ -217,6 +217,80 @@ void test_decReg_wrapsToFF()
     std::cout << "test_decReg_wrapsToFF passed\n";
 }
 
+// ---------- accumulatorRegisterArithmetic: AND/XOR/OR/CP ----------
+void test_and_setsHalfCarry()
+{
+    Bus bus{};
+    CPU cpu{bus};
+
+    cpu.regs.reg8[static_cast<std::size_t>(CPU::Registers::REG8::A)] = 0xF0;
+    cpu.regs.reg8[static_cast<std::size_t>(CPU::Registers::REG8::B)] = 0x0F;
+
+    std::uint8_t cycles =
+        cpu.accumulatorRegisterArithmetic(CPU::Registers::ALU::AND, static_cast<std::size_t>(CPU::Registers::REG8::B));
+
+    assert(cpu.regs.reg8[static_cast<std::size_t>(CPU::Registers::REG8::A)] == 0x00);
+    assert(cpu.regs.flag.test(CPU::Registers::Flags::Zero) == true);
+    assert(cpu.regs.flag.test(CPU::Registers::Flags::HalfCarry) == true); // AND always sets this
+    assert(cpu.regs.flag.test(CPU::Registers::Flags::Carry) == false);
+    assert(cycles == 1);
+    std::cout << "test_and_setsHalfCarry passed\n";
+}
+
+void test_xor_clearsHalfCarry()
+{
+    Bus bus{};
+    CPU cpu{bus};
+
+    cpu.regs.reg8[static_cast<std::size_t>(CPU::Registers::REG8::A)] = 0xFF;
+    cpu.regs.reg8[static_cast<std::size_t>(CPU::Registers::REG8::B)] = 0x0F;
+
+    std::uint8_t cycles =
+        cpu.accumulatorRegisterArithmetic(CPU::Registers::ALU::XOR, static_cast<std::size_t>(CPU::Registers::REG8::B));
+
+    assert(cpu.regs.reg8[static_cast<std::size_t>(CPU::Registers::REG8::A)] == 0xF0);
+    assert(cpu.regs.flag.test(CPU::Registers::Flags::HalfCarry) == false); // this is the bug that was fixed
+    assert(cpu.regs.flag.test(CPU::Registers::Flags::Carry) == false);
+    assert(cycles == 1);
+    std::cout << "test_xor_clearsHalfCarry passed\n";
+}
+
+void test_or_clearsHalfCarry()
+{
+    Bus bus{};
+    CPU cpu{bus};
+
+    cpu.regs.reg8[static_cast<std::size_t>(CPU::Registers::REG8::A)] = 0x00;
+    cpu.regs.reg8[static_cast<std::size_t>(CPU::Registers::REG8::B)] = 0x01;
+
+    std::uint8_t cycles =
+        cpu.accumulatorRegisterArithmetic(CPU::Registers::ALU::OR, static_cast<std::size_t>(CPU::Registers::REG8::B));
+
+    assert(cpu.regs.reg8[static_cast<std::size_t>(CPU::Registers::REG8::A)] == 0x01);
+    assert(cpu.regs.flag.test(CPU::Registers::Flags::HalfCarry) == false); // same fix as XOR
+    assert(cpu.regs.flag.test(CPU::Registers::Flags::Zero) == false);
+    assert(cycles == 1);
+    std::cout << "test_or_clearsHalfCarry passed\n";
+}
+
+void test_cp_doesNotModifyA()
+{
+    Bus bus{};
+    CPU cpu{bus};
+
+    cpu.regs.reg8[static_cast<std::size_t>(CPU::Registers::REG8::A)] = 0x05;
+    cpu.regs.reg8[static_cast<std::size_t>(CPU::Registers::REG8::B)] = 0x05;
+
+    std::uint8_t cycles =
+        cpu.accumulatorRegisterArithmetic(CPU::Registers::ALU::CP, static_cast<std::size_t>(CPU::Registers::REG8::B));
+
+    assert(cpu.regs.reg8[static_cast<std::size_t>(CPU::Registers::REG8::A)] == 0x05); // CP must NOT write back to A
+    assert(cpu.regs.flag.test(CPU::Registers::Flags::Zero) == true); // A == B, so this behaves like a zero result
+    assert(cpu.regs.flag.test(CPU::Registers::Flags::Subtraction) == true);
+    assert(cycles == 1);
+    std::cout << "test_cp_doesNotModifyA passed\n";
+}
+
 // ---------- incRegPair / decRegPair ----------
 void test_incRegPair_noFlagsTouched()
 {
@@ -234,6 +308,22 @@ void test_incRegPair_noFlagsTouched()
     assert(cpu.regs.flag.test(CPU::Registers::Flags::Carry) == true); // untouched
     assert(cycles == 2);
     std::cout << "test_incRegPair_noFlagsTouched passed\n";
+}
+
+void test_decRegPair_actuallyDecrements()
+{
+    Bus bus{};
+    CPU cpu{bus};
+
+    cpu.regs.set16(static_cast<std::size_t>(CPU::Registers::RP::DE), 0x0100);
+
+    std::uint8_t cycles = cpu.decRegPair(static_cast<std::size_t>(CPU::Registers::RP::DE));
+
+    // this assert fails against the current code -- decRegPair currently
+    // writes the value back unchanged instead of subtracting 1
+    assert(cpu.regs.get16(static_cast<std::size_t>(CPU::Registers::RP::DE)) == 0x00FF);
+    assert(cycles == 2);
+    std::cout << "test_decRegPair_actuallyDecrements passed\n";
 }
 
 // ---------- conditionalJump: all four conditions, taken and not-taken ----------
@@ -330,7 +420,74 @@ void test_jr_nz_notTaken()
     assert(cycles == 2);
     std::cout << "test_jr_nz_notTaken passed\n";
 }
+void test_push_writesToMemoryAtDecrementedSP()
+{
+    Bus bus{};
+    CPU cpu{bus};
 
+    cpu.regs.set16(static_cast<std::size_t>(CPU::Registers::RP::SP), 0xFFFE);
+    cpu.regs.set16(static_cast<std::size_t>(CPU::Registers::RP::BC), 0x1234);
+
+    std::uint8_t cycles = cpu.pushRegPair(static_cast<std::size_t>(CPU::Registers::RP::BC));
+
+    assert(cpu.regs.get16(static_cast<std::size_t>(CPU::Registers::RP::SP)) == 0xFFFC); // SP moved down by 2
+    assert(bus.read(0xFFFD) == 0x12); // high byte written first, at the higher address
+    assert(bus.read(0xFFFC) == 0x34); // low byte written second, at the lower address
+    assert(cycles == 4);
+    std::cout << "test_push_writesToMemoryAtDecrementedSP passed\n";
+}
+
+void test_pop_readsBackWhatWasPushed()
+{
+    Bus bus{};
+    CPU cpu{bus};
+
+    cpu.regs.set16(static_cast<std::size_t>(CPU::Registers::RP::SP), 0xFFFC);
+    bus.write(0xFFFC, 0x34);
+    bus.write(0xFFFD, 0x12);
+
+    std::uint8_t cycles = cpu.popRegPair(static_cast<std::size_t>(CPU::Registers::RP::DE));
+
+    assert(cpu.regs.get16(static_cast<std::size_t>(CPU::Registers::RP::DE)) == 0x1234);
+    assert(cpu.regs.get16(static_cast<std::size_t>(CPU::Registers::RP::SP)) == 0xFFFE); // SP moved back up by 2
+    assert(cycles == 3);
+    std::cout << "test_pop_readsBackWhatWasPushed passed\n";
+}
+
+void test_pop_af_masksLowNibbleOfF()
+{
+    Bus bus{};
+    CPU cpu{bus};
+
+    cpu.regs.set16(static_cast<std::size_t>(CPU::Registers::RP::SP), 0xFFFC);
+    bus.write(0xFFFC, 0xFF); // low byte (F) -- garbage in the low nibble on purpose
+    bus.write(0xFFFD, 0x42); // high byte (A)
+
+    cpu.popRegPair(static_cast<std::size_t>(CPU::Registers::RP::AF));
+
+    std::uint16_t af = cpu.regs.get16(static_cast<std::size_t>(CPU::Registers::RP::AF));
+    assert((af & 0xFF) == 0xF0); // F's low nibble forced to 0, high nibble (real flags) preserved
+    assert((af >> 8) == 0x42);   // A untouched
+    std::cout << "test_pop_af_masksLowNibbleOfF passed\n";
+}
+
+void test_push_pop_roundTrip()
+{
+    Bus bus{};
+    CPU cpu{bus};
+
+    cpu.regs.set16(static_cast<std::size_t>(CPU::Registers::RP::SP), 0xFFFE);
+    cpu.regs.set16(static_cast<std::size_t>(CPU::Registers::RP::HL), 0xBEEF);
+
+    cpu.pushRegPair(static_cast<std::size_t>(CPU::Registers::RP::HL));
+    cpu.regs.set16(static_cast<std::size_t>(CPU::Registers::RP::HL),
+                   0x0000); // clobber it to prove the pop actually restores it
+    cpu.popRegPair(static_cast<std::size_t>(CPU::Registers::RP::HL));
+
+    assert(cpu.regs.get16(static_cast<std::size_t>(CPU::Registers::RP::HL)) == 0xBEEF);
+    assert(cpu.regs.get16(static_cast<std::size_t>(CPU::Registers::RP::SP)) == 0xFFFE); // back to where it started
+    std::cout << "test_push_pop_roundTrip passed\n";
+}
 int main()
 {
     test_nop();
@@ -345,9 +502,15 @@ int main()
 
     test_addHLRegPair_halfCarry();
 
+    test_and_setsHalfCarry();
+    test_xor_clearsHalfCarry();
+    test_or_clearsHalfCarry();
+    test_cp_doesNotModifyA();
+
     test_incReg_halfCarry();
     test_decReg_wrapsToFF();
     test_incRegPair_noFlagsTouched();
+    test_decRegPair_actuallyDecrements();
 
     test_jp_z_taken();
     test_jp_z_notTaken();
@@ -356,6 +519,11 @@ int main()
     test_jr_c_forward();
     test_jr_c_backward();
     test_jr_nz_notTaken();
+
+    test_push_writesToMemoryAtDecrementedSP();
+    test_pop_readsBackWhatWasPushed();
+    test_pop_af_masksLowNibbleOfF();
+    test_push_pop_roundTrip();
 
     std::cout << "all tests passed\n";
     return 0;
