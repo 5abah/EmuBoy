@@ -50,7 +50,7 @@ display yet.
   decide whether to use the new 2-character licensee code instead) isn't
   implemented yet -- `oldLicenseCode` is currently always left at its
   default value.
-- `main.cpp` doesn't yet check whether `readRomFile` returned a valid
+- `main.cpp` doesn't yet check whether `readCartridgeFile` returned a valid
   result before dereferencing it -- needs a `.has_value()` check before
   this is safe against malformed/missing files.
 
