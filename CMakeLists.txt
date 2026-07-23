@@ -17,17 +17,14 @@ project(GameBoyEmu
     LANGUAGES CXX
 )
 
-add_executable(GameBoyEmu)
-
-
-target_sources(GameBoyEmu
+add_library(GameBoyCore)
+target_sources(GameBoyCore
     PRIVATE
-        core/platform/main.cpp
         core/cpu_opcodes.cpp
-    PRIVATE
+    PUBLIC
         FILE_SET cxx_modules TYPE CXX_MODULES
-        BASE_DIRS  
-            "${CMAKE_CURRENT_SOURCE_DIR}/core"  # This fixes the lookup failure
+        BASE_DIRS
+            "${CMAKE_CURRENT_SOURCE_DIR}/core"
         FILES
             core/apu.cppm
             core/bus.cppm
@@ -40,8 +37,33 @@ target_sources(GameBoyEmu
             core/ppu.cppm
             core/timer.cppm
             core/mbc/mbc.cppm
-
 )
+target_compile_features(GameBoyCore PRIVATE cxx_std_23)
+set_target_properties(GameBoyCore PROPERTIES
+    CXX_MODULE_STD ON
+    CXX_EXTENSIONS OFF
+)
+target_compile_options(GameBoyCore PRIVATE -Wall -Wextra -Wpedantic)
+
+# ---- the real emulator ----
+add_executable(GameBoyEmu core/platform/main.cpp)
+target_link_libraries(GameBoyEmu PRIVATE GameBoyCore)
+target_compile_features(GameBoyEmu PRIVATE cxx_std_23)
+set_target_properties(GameBoyEmu PROPERTIES
+    CXX_MODULE_STD ON
+    CXX_EXTENSIONS OFF
+)
+
+# ---- test binary ----
+add_executable(GameBoyTests core/tests/cpu_opcode_test.cpp)
+target_link_libraries(GameBoyTests PRIVATE GameBoyCore)
+target_compile_features(GameBoyTests PRIVATE cxx_std_23)
+set_target_properties(GameBoyTests PROPERTIES
+    CXX_MODULE_STD ON
+    CXX_EXTENSIONS OFF
+)
+
+
 
 
 set_source_files_properties(

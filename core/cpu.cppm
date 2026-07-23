@@ -101,7 +101,7 @@ export class CPU
     std::uint8_t popRegPair(std::uint8_t regIndexP);                                          // POP
     std::uint8_t conditionalJump(std::uint8_t conditionIndexY);                               // JP cc
     std::uint8_t relativeConditionalJump(std::uint8_t conditionIndexY);                       // JR cc
-    std::uint8_t callConditional();                                                           // CALL cc
+    std::uint8_t callConditional(std::uint8_t conditionYIndex);                               // CALL cc
     std::uint8_t returnConditional();                                                         // RET cc
     std::uint8_t restart();                                                                   // RST
     std::uint8_t disableInterrupts();
