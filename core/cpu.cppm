@@ -98,11 +98,12 @@ export class CPU
     std::uint8_t decRegPair(std::uint8_t regIndexP);                                          // DEC rr
     std::uint8_t pushRegPair(std::uint8_t regIndexP);                                         // PUSH
     std::uint8_t popRegPair(std::uint8_t regIndexP);                                          // POP
-    std::uint8_t conditionalJump(std::uint8_t conditionIndexY);                               // JP cc
-    std::uint8_t relativeConditionalJump(std::uint8_t conditionIndexY);                       // JR cc
-    std::uint8_t callConditional(std::uint8_t conditionYIndex);                               // CALL cc
-    std::uint8_t returnConditional(std::uint8_t conditionYIndex);                             // RET cc
-    std::uint8_t restart(std::uint8_t y);                                                     // RST
+    std::uint8_t relativeJump();
+    std::uint8_t conditionalJump(std::uint8_t conditionIndexY);         // JP cc
+    std::uint8_t relativeConditionalJump(std::uint8_t conditionIndexY); // JR cc
+    std::uint8_t callConditional(std::uint8_t conditionYIndex);         // CALL cc
+    std::uint8_t returnConditional(std::uint8_t conditionYIndex);       // RET cc
+    std::uint8_t restart(std::uint8_t y);                               // RST
     std::uint8_t disableInterrupts();
     std::uint8_t enableInterrupts();
     std::uint8_t decimalAdjustAccumulator();
@@ -116,17 +117,17 @@ export class CPU
     std::uint8_t jmpToHL();
     std::uint8_t retFromInterrupt();
     // CB Prefixed OpCodes
-    std::uint8_t rotateLeftCB();
-    std::uint8_t rotateLeftCarryCB();
-    std::uint8_t rotateRightCB();
-    std::uint8_t rotateRightCarryCB();
-    std::uint8_t shiftLeftArithmeticCB();
-    std::uint8_t shiftRightArithmeticCB();
-    std::uint8_t shiftRightLogicalCB();
-    std::uint8_t swapNibblesCB();
-    std::uint8_t testBit();  // BIT
-    std::uint8_t setBit();   // SET
-    std::uint8_t clearBit(); // RES
+    std::uint8_t rotateLeftCB(std::uint8_t regIndexZ);
+    std::uint8_t rotateLeftCarryCB(std::uint8_t regIndexZ);
+    std::uint8_t rotateRightCB(std::uint8_t regIndexZ);
+    std::uint8_t rotateRightCarryCB(std::uint8_t regIndexZ);
+    std::uint8_t shiftLeftArithmeticCB(std::uint8_t regIndexZ);
+    std::uint8_t shiftRightArithmeticCB(std::uint8_t regIndexZ);
+    std::uint8_t shiftRightLogicalCB(std::uint8_t regIndexZ);
+    std::uint8_t swapNibblesCB(std::uint8_t regIndexZ);
+    std::uint8_t testBit(std::uint8_t bit, std::uint8_t regIndexZ);  // BIT
+    std::uint8_t setBit(std::uint8_t bit, std::uint8_t regIndexZ);   // SET
+    std::uint8_t clearBit(std::uint8_t bit, std::uint8_t regIndexZ); // RES
 };
 
 std::uint8_t CPU::Registers::getLo(std::uint16_t reg)
@@ -234,11 +235,12 @@ std::uint8_t CPU::step()
                 return 1;
                 break;
             case 3:
+                cycleCount += relativeJump();
                 break;
             default:
                 cycleCount += relativeConditionalJump(y - 4);
             }
-            break; // ADDED: was falling through into case 1 of switch(z)
+            break;
         case 1:
             switch (q)
             {
@@ -257,130 +259,224 @@ std::uint8_t CPU::step()
                 switch (p)
                 {
                 case 0:
+                    // TODO: LD (BC), A -- no function yet. Mirror ldIndirectHLIncrementA()
+                    // but target Registers::RP::BC and drop the increment.
+                    break;
                 case 1:
+                    // TODO: LD (DE), A -- same gap, target RP::DE.
+                    break;
                 case 2:
+                    cycleCount += ldIndirectHLIncrementA();
+                    break;
                 case 3:
+                    cycleCount += ldIndirectHLDecrementA();
+                    break;
                 }
-                break; // ADDED
+                break;
             case 1:
                 switch (p)
                 {
                 case 0:
+                    // TODO: LD A, (BC) -- no function yet.
+                    break;
                 case 1:
+                    // TODO: LD A, (DE) -- no function yet.
+                    break;
                 case 2:
+                    cycleCount += ldAIndirectHLIncrement();
+                    break;
                 case 3:
+                    cycleCount += ldAIndirectHLDecrement();
+                    break;
                 }
-                break; // ADDED
+                break;
             }
-            break; // ADDED: was falling through into case 3 of switch(z)
+            break;
         case 3:
             q == 0 ? cycleCount += incRegPair(p) : cycleCount += decRegPair(p);
-            break; // ADDED: was falling through into case 4
+            break;
         case 4:
             cycleCount += incRegOrMemory(y);
-            break; // ADDED: was falling through into case 5
+            break;
         case 5:
             cycleCount += decRegOrMemory(y);
-            break; // ADDED: was falling through into case 6
+            break;
         case 6:
             cycleCount += ldRegImmediate(y);
-            break; // ADDED: was falling through into case 7
+            break;
         case 7:
             switch (y)
             {
             case 0:
+                cycleCount += rotateLeftAccumulator();
+                break;
             case 1:
+                cycleCount += rotateRightAccumulator();
+                break;
             case 2:
+                cycleCount += rotateLeftAccumulatorCarry();
+                break;
             case 3:
+                cycleCount += rotateRightAccumulatorCarry();
+                break;
             case 4:
+                cycleCount += decimalAdjustAccumulator();
+                break;
             case 5:
+                cycleCount += complementAccumulator();
+                break;
             case 6:
+                cycleCount += setCarryFlag();
+                break;
             case 7:
+                cycleCount += complementCarryFlag();
+                break;
             }
-            break; // ADDED
+            break;
         }
         break;
     case 1:
         if (z == 6 && y == 6)
             return 10;
         cycleCount += ldRegToReg(y, z);
-        break; // ADDED: was falling through into case 2 of switch(x)
+        break;
     case 2:
         cycleCount += accumulatorRegisterArithmetic(y, z);
-        break; // ADDED: was falling through into case 3 of switch(x)
+        break;
     case 3:
         switch (z)
         {
         case 0:
             switch (y)
             {
+            case 0:
+            case 1:
+            case 2:
+            case 3:
+                cycleCount += returnConditional(y);
+                break;
             case 4:
+                // TODO: LDH (n), A -- write A to 0xFF00+n8. No function yet.
+                break;
             case 5:
+                // TODO: ADD SP, e -- signed add into SP. No function yet.
+                break;
             case 6:
+                // TODO: LDH A, (n) -- read 0xFF00+n8 into A. No function yet.
+                break;
             case 7:
-            default:
+                cycleCount += ldHLStackPointerPlusOffset();
+                break;
             }
-            break; // ADDED
+            break;
         case 1:
             if (q)
             {
                 switch (p)
                 {
                 case 0:
-                    // RET
+                    // TODO: RET (unconditional) -- no standalone function yet.
+                    break;
                 case 1:
-                    // RETI
+                    cycleCount += retFromInterrupt();
+                    break;
                 case 2:
-                    // JP HL
+                    cycleCount += jmpToHL();
+                    break;
                 case 3:
-                    // LD SP, HL
+                    cycleCount += ldSPToHL();
+                    break;
                 }
             }
             else
                 cycleCount += popRegPair(p);
-            break; // ADDED: this now attaches to the dangling else as its statement
+            break;
         case 2:
-            switch (y)
-            {
-            case 4:
-            case 5:
-            case 6:
-            case 7:
-            default:
-            }
-            break; // ADDED
-        case 3:
             switch (y)
             {
             case 0:
             case 1:
             case 2:
             case 3:
+                cycleCount += conditionalJump(y);
+                break;
+            case 4:
+                // TODO: LD (0xFF00+C), A -- no function yet.
+                break;
+            case 5:
+                // TODO: LD (nn), A -- no function yet.
+                break;
+            case 6:
+                // TODO: LD A, (0xFF00+C) -- no function yet.
+                break;
+            case 7:
+                // TODO: LD A, (nn) -- no function yet.
+                break;
+            }
+            break;
+        case 3:
+            switch (y)
+            {
+            case 0:
+                // TODO: JP nn (unconditional) -- no function yet.
+                break;
+            case 1:
+                // TODO: CB-prefixed dispatch. Needs its own x/y/z decode of the
+                // *next* byte, routed to rotateLeftCB / rotateRightCB /
+                // rotateLeftCarryCB / rotateRightCarryCB / shiftLeftArithmeticCB /
+                // shiftRightArithmeticCB / shiftRightLogicalCB / swapNibblesCB /
+                // testBit / setBit / clearBit. Resolve the calling-convention
+                // mismatch noted above before wiring this up.
+                break;
+            case 2:
+            case 3:
+            case 4:
+            case 5:
+                throw std::runtime_error("Invalid Opcode!"); // removed on GB (OUT/IN/EX)
+            case 6:
+                cycleCount += disableInterrupts();
+                break;
+            case 7:
+                cycleCount += enableInterrupts();
+                break;
+            }
+            break;
+        case 4:
+            switch (y)
+            {
+            case 0:
+            case 1:
+            case 2:
+            case 3:
+                cycleCount += callConditional(y);
+                break;
             case 4:
             case 5:
             case 6:
             case 7:
+                throw std::runtime_error("Invalid Opcode!"); // removed on GB
             }
-            break; // ADDED
-        case 4:
+            break;
         case 5:
-            if (q)
+            if (q == 0)
+                cycleCount += pushRegPair(p);
+            else if (p == 0)
             {
-                if (p == 0)
-                {
-                    // call nn
-                }
+                // TODO: CALL nn (unconditional) -- no function yet.
             }
             else
-                pushRegPair(p);
+                throw std::runtime_error("Invalid Opcode!"); // removed on GB
+            break;
         case 6:
-            // alu[y] n
-            break; // ADDED
+            // TODO: alu[y] n -- accumulatorRegisterArithmetic() only reads
+            // regs.reg8[regIndex]; it has no immediate-operand mode, so this
+            // needs a new function/overload that reads n8 from bus first.
+            break;
         case 7:
-            // RST y*8
-            break; // ADDED
+            cycleCount += restart(y);
+            break;
         }
-        break; // ADDED: was falling out of switch(x) entirely with no break at all
+        break;
     default:
         throw std::runtime_error("Invalid Opcode!");
         std::unreachable();
