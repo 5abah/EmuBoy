@@ -1,5 +1,6 @@
 // interrupts
 export module interrupts;
+import std;
 
 export class Interrupts
 {
@@ -11,4 +12,9 @@ export class Interrupts
         Serial,
         Joypad
     };
+
+  public:
+    bool IME{};
+    std::bitset<8> IE{};
+    std::bitset<8> IF{};
 };

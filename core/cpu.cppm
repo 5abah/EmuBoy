@@ -77,7 +77,6 @@ export class CPU
     Registers regs{};
     CPU(Bus &busGet) : bus{busGet} {};
 
-    std::uint8_t IME{0}; // Interrupt Master Enable flag
     std::uint8_t step();
 
     std::uint8_t nop();
@@ -102,8 +101,8 @@ export class CPU
     std::uint8_t conditionalJump(std::uint8_t conditionIndexY);                               // JP cc
     std::uint8_t relativeConditionalJump(std::uint8_t conditionIndexY);                       // JR cc
     std::uint8_t callConditional(std::uint8_t conditionYIndex);                               // CALL cc
-    std::uint8_t returnConditional();                                                         // RET cc
-    std::uint8_t restart();                                                                   // RST
+    std::uint8_t returnConditional(std::uint8_t conditionYIndex);                             // RET cc
+    std::uint8_t restart(std::uint8_t y);                                                     // RST
     std::uint8_t disableInterrupts();
     std::uint8_t enableInterrupts();
     std::uint8_t decimalAdjustAccumulator();
@@ -116,7 +115,6 @@ export class CPU
     std::uint8_t rotateRightAccumulatorCarry();
     std::uint8_t jmpToHL();
     std::uint8_t retFromInterrupt();
-    std::uint8_t illegalOpcode();
     // CB Prefixed OpCodes
     std::uint8_t rotateLeftCB();
     std::uint8_t rotateLeftCarryCB();
@@ -383,6 +381,9 @@ std::uint8_t CPU::step()
             break; // ADDED
         }
         break; // ADDED: was falling out of switch(x) entirely with no break at all
+    default:
+        throw std::runtime_error("Invalid Opcode!");
+        std::unreachable();
     }
     return cycleCount;
 }

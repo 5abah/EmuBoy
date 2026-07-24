@@ -7,6 +7,7 @@ import apu;
 import timer;
 import joypad;
 import cartridge;
+import interrupts;
 using namespace MemLiteral;
 
 export class Bus
@@ -19,7 +20,7 @@ export class Bus
     Timer timer;
     Joypad joypad;
     // Cartridge cartridge;
-    // Interrupts interrupts;
+    Interrupts interrupts;
     const std::uint8_t &read(std::uint16_t pcIndex) const;
     void write(std::uint16_t pcIndex, std::uint8_t byte2Write);
 };
