@@ -13,6 +13,13 @@ export struct Interrupts
         Joypad
     };
 
+    struct InterruptEntry
+    {
+        std::uint8_t mask;
+        InterruptType type;
+        std::uint16_t vector;
+    };
+
     bool IME{}, IMEPendingEnable{};
     std::bitset<8> IE{};
     std::bitset<8> IF{};

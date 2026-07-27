@@ -79,6 +79,7 @@ export class CPU
 
     std::uint8_t step();
     std::uint8_t nop();
+    std::uint8_t handleInterrupts();
     std::uint8_t ldRegToReg(std::uint8_t regIndexY, std::uint8_t regIndexZ); // LD r, r'
     std::uint8_t ldRegImmediate(std::uint8_t regIndex);                      // LD r, n8
     std::uint8_t ldRegPairImmediate(std::uint8_t regIndex);                  // LD rr, n16
@@ -250,23 +251,23 @@ std::uint8_t CPU::step()
             {
             case 0:
                 cycleCount += nop();
-                cycleCount += bus.handleInterrupts();
+                cycleCount += handleInterrupts();
                 break;
             case 1:
                 cycleCount += ldAddressStackPointer();
-                cycleCount += bus.handleInterrupts();
+                cycleCount += handleInterrupts();
                 break;
             case 2:
                 cycleCount += stop(); // STOP -- not HALT, corrected label
-                cycleCount += bus.handleInterrupts();
+                cycleCount += handleInterrupts();
                 break;
             case 3:
                 cycleCount += relativeJump();
-                cycleCount += bus.handleInterrupts();
+                cycleCount += handleInterrupts();
                 break;
             default:
                 cycleCount += relativeConditionalJump(y - 4);
-                cycleCount += bus.handleInterrupts();
+                cycleCount += handleInterrupts();
             }
             break;
         case 1:
@@ -274,11 +275,11 @@ std::uint8_t CPU::step()
             {
             case 0:
                 cycleCount += ldRegPairImmediate(p);
-                cycleCount += bus.handleInterrupts();
+                cycleCount += handleInterrupts();
                 break;
             case 1:
                 cycleCount += addHLRegPair(p);
-                cycleCount += bus.handleInterrupts();
+                cycleCount += handleInterrupts();
                 break;
             }
             break;
@@ -290,19 +291,19 @@ std::uint8_t CPU::step()
                 {
                 case 0:
                     cycleCount += ldIndirectBCA();
-                    cycleCount += bus.handleInterrupts();
+                    cycleCount += handleInterrupts();
                     break;
                 case 1:
                     cycleCount += ldIndirectDEA();
-                    cycleCount += bus.handleInterrupts();
+                    cycleCount += handleInterrupts();
                     break;
                 case 2:
                     cycleCount += ldIndirectHLIncrementA();
-                    cycleCount += bus.handleInterrupts();
+                    cycleCount += handleInterrupts();
                     break;
                 case 3:
                     cycleCount += ldIndirectHLDecrementA();
-                    cycleCount += bus.handleInterrupts();
+                    cycleCount += handleInterrupts();
                     break;
                 }
                 break;
@@ -311,19 +312,19 @@ std::uint8_t CPU::step()
                 {
                 case 0:
                     cycleCount += ldAIndirectBC();
-                    cycleCount += bus.handleInterrupts();
+                    cycleCount += handleInterrupts();
                     break;
                 case 1:
                     cycleCount += ldAIndirectDE();
-                    cycleCount += bus.handleInterrupts();
+                    cycleCount += handleInterrupts();
                     break;
                 case 2:
                     cycleCount += ldAIndirectHLIncrement();
-                    cycleCount += bus.handleInterrupts();
+                    cycleCount += handleInterrupts();
                     break;
                 case 3:
                     cycleCount += ldAIndirectHLDecrement();
-                    cycleCount += bus.handleInterrupts();
+                    cycleCount += handleInterrupts();
                     break;
                 }
                 break;
@@ -331,54 +332,54 @@ std::uint8_t CPU::step()
             break;
         case 3:
             q == 0 ? cycleCount += incRegPair(p) : cycleCount += decRegPair(p);
-            cycleCount += bus.handleInterrupts();
+            cycleCount += handleInterrupts();
             break;
         case 4:
             cycleCount += incRegOrMemory(y);
-            cycleCount += bus.handleInterrupts();
+            cycleCount += handleInterrupts();
             break;
         case 5:
             cycleCount += decRegOrMemory(y);
-            cycleCount += bus.handleInterrupts();
+            cycleCount += handleInterrupts();
             break;
         case 6:
             cycleCount += ldRegImmediate(y);
-            cycleCount += bus.handleInterrupts();
+            cycleCount += handleInterrupts();
             break;
         case 7:
             switch (y)
             {
             case 0:
                 cycleCount += rotateLeftAccumulator();
-                cycleCount += bus.handleInterrupts();
+                cycleCount += handleInterrupts();
                 break;
             case 1:
                 cycleCount += rotateRightAccumulator();
-                cycleCount += bus.handleInterrupts();
+                cycleCount += handleInterrupts();
                 break;
             case 2:
                 cycleCount += rotateLeftAccumulatorCarry();
-                cycleCount += bus.handleInterrupts();
+                cycleCount += handleInterrupts();
                 break;
             case 3:
                 cycleCount += rotateRightAccumulatorCarry();
-                cycleCount += bus.handleInterrupts();
+                cycleCount += handleInterrupts();
                 break;
             case 4:
                 cycleCount += decimalAdjustAccumulator();
-                cycleCount += bus.handleInterrupts();
+                cycleCount += handleInterrupts();
                 break;
             case 5:
                 cycleCount += complementAccumulator();
-                cycleCount += bus.handleInterrupts();
+                cycleCount += handleInterrupts();
                 break;
             case 6:
                 cycleCount += setCarryFlag();
-                cycleCount += bus.handleInterrupts();
+                cycleCount += handleInterrupts();
                 break;
             case 7:
                 cycleCount += complementCarryFlag();
-                cycleCount += bus.handleInterrupts();
+                cycleCount += handleInterrupts();
                 break;
             }
             break;
@@ -392,15 +393,15 @@ std::uint8_t CPU::step()
             // check at the very top (before fetch) to skip normal execution
             // while halted, per step 6 above. Not done yet.
             cycleCount += halt();
-            cycleCount += bus.handleInterrupts();
+            cycleCount += handleInterrupts();
             break;
         }
         cycleCount += ldRegToReg(y, z);
-        cycleCount += bus.handleInterrupts();
+        cycleCount += handleInterrupts();
         break;
     case 2:
         cycleCount += accumulatorRegisterArithmetic(y, z);
-        cycleCount += bus.handleInterrupts();
+        cycleCount += handleInterrupts();
         break;
     case 3:
         switch (z)
@@ -413,23 +414,23 @@ std::uint8_t CPU::step()
             case 2:
             case 3:
                 cycleCount += returnConditional(y);
-                cycleCount += bus.handleInterrupts();
+                cycleCount += handleInterrupts();
                 break;
             case 4:
                 cycleCount += loadHighAddressImmediate();
-                cycleCount += bus.handleInterrupts();
+                cycleCount += handleInterrupts();
                 break;
             case 5:
                 cycleCount += addSPOffset();
-                cycleCount += bus.handleInterrupts();
+                cycleCount += handleInterrupts();
                 break;
             case 6:
                 cycleCount += loadAHighAddressImmediate();
-                cycleCount += bus.handleInterrupts();
+                cycleCount += handleInterrupts();
                 break;
             case 7:
                 cycleCount += ldHLStackPointerPlusOffset();
-                cycleCount += bus.handleInterrupts();
+                cycleCount += handleInterrupts();
                 break;
             }
             break;
@@ -440,26 +441,26 @@ std::uint8_t CPU::step()
                 {
                 case 0:
                     cycleCount += returnUnconditional();
-                    cycleCount += bus.handleInterrupts();
+                    cycleCount += handleInterrupts();
                     break;
                 case 1:
                     cycleCount += retFromInterrupt();
-                    cycleCount += bus.handleInterrupts();
+                    cycleCount += handleInterrupts();
                     break;
                 case 2:
                     cycleCount += jmpToHL();
-                    cycleCount += bus.handleInterrupts();
+                    cycleCount += handleInterrupts();
                     break;
                 case 3:
                     cycleCount += ldSPToHL();
-                    cycleCount += bus.handleInterrupts();
+                    cycleCount += handleInterrupts();
                     break;
                 }
             }
             else
             {
                 cycleCount += popRegPair(p);
-                cycleCount += bus.handleInterrupts();
+                cycleCount += handleInterrupts();
             }
             break;
         case 2:
@@ -470,23 +471,23 @@ std::uint8_t CPU::step()
             case 2:
             case 3:
                 cycleCount += conditionalJump(y);
-                cycleCount += bus.handleInterrupts();
+                cycleCount += handleInterrupts();
                 break;
             case 4:
                 cycleCount += loadHighAddressC();
-                cycleCount += bus.handleInterrupts();
+                cycleCount += handleInterrupts();
                 break;
             case 5:
                 cycleCount += loadAddressA();
-                cycleCount += bus.handleInterrupts();
+                cycleCount += handleInterrupts();
                 break;
             case 6:
                 cycleCount += loadAHighAddressC();
-                cycleCount += bus.handleInterrupts();
+                cycleCount += handleInterrupts();
                 break;
             case 7:
                 cycleCount += loadAAddress();
-                cycleCount += bus.handleInterrupts();
+                cycleCount += handleInterrupts();
                 break;
             }
             break;
@@ -495,26 +496,26 @@ std::uint8_t CPU::step()
             {
             case 0:
                 cycleCount += jmpImmediate();
-                cycleCount += bus.handleInterrupts();
+                cycleCount += handleInterrupts();
                 break;
             case 1:
                 // TODO: CB-prefixed dispatch -- do this only after step 1
                 // (fixing rotateLeftCB/rotateRightCB) is done.
-                cycleCount += bus.handleInterrupts();
+                cycleCount += handleInterrupts();
                 break;
             case 2:
             case 3:
             case 4:
             case 5:
-                cycleCount += bus.handleInterrupts();
+                cycleCount += handleInterrupts();
                 throw std::runtime_error("Invalid Opcode!"); // removed on GB
             case 6:
                 cycleCount += disableInterrupts();
-                cycleCount += bus.handleInterrupts();
+                cycleCount += handleInterrupts();
                 break;
             case 7:
                 cycleCount += enableInterrupts();
-                cycleCount += bus.handleInterrupts();
+                cycleCount += handleInterrupts();
                 break;
             }
             break;
@@ -526,13 +527,13 @@ std::uint8_t CPU::step()
             case 2:
             case 3:
                 cycleCount += callConditional(y);
-                cycleCount += bus.handleInterrupts();
+                cycleCount += handleInterrupts();
                 break;
             case 4:
             case 5:
             case 6:
             case 7:
-                cycleCount += bus.handleInterrupts();
+                cycleCount += handleInterrupts();
                 throw std::runtime_error("Invalid Opcode!"); // removed on GB
             }
             break;
@@ -540,32 +541,32 @@ std::uint8_t CPU::step()
             if (q == 0)
             {
                 cycleCount += pushRegPair(p);
-                cycleCount += bus.handleInterrupts();
+                cycleCount += handleInterrupts();
             }
             else if (p == 0)
             {
                 cycleCount += callImmediate();
-                cycleCount += bus.handleInterrupts();
+                cycleCount += handleInterrupts();
             }
             else
             {
-                cycleCount += bus.handleInterrupts();
+                cycleCount += handleInterrupts();
                 throw std::runtime_error("Invalid Opcode!"); // removed on GB
             }
             break;
         case 6:
             // TODO: alu[y] n -- still needs a function/overload that fetches
             // an immediate byte and feeds it as the operand. Not done yet.
-            cycleCount += bus.handleInterrupts();
+            cycleCount += handleInterrupts();
             break;
         case 7:
             cycleCount += restart(y);
-            cycleCount += bus.handleInterrupts();
+            cycleCount += handleInterrupts();
             break;
         }
         break;
     default:
-        cycleCount += bus.handleInterrupts();
+        cycleCount += handleInterrupts();
         throw std::runtime_error("Invalid Opcode!");
         std::unreachable();
     }
