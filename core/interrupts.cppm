@@ -2,9 +2,9 @@
 export module interrupts;
 import std;
 
-export class Interrupts
+export struct Interrupts
 {
-    enum class InterruptType
+    enum InterruptType
     {
         VBlank = 0,
         LCDStat,
@@ -13,8 +13,9 @@ export class Interrupts
         Joypad
     };
 
-  public:
-    bool IME{};
+    bool IME{}, IMEPendingEnable{};
     std::bitset<8> IE{};
     std::bitset<8> IF{};
+    std::uint16_t pending{};
+    void handleInterrupts();
 };
