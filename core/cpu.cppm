@@ -101,6 +101,7 @@ export class CPU
     std::uint8_t callImmediate();                                            // CALL nn
     std::uint8_t returnUnconditional();                                      // RET
     std::uint8_t halt();                                                     // HALT
+    std::uint8_t stop();                                                     // STOP
     std::uint8_t ldSPToHL();                                                 // LD SP, HL
     std::uint8_t ldHLStackPointerPlusOffset();                               // LD HL, SP+e
     std::uint8_t ldAddressStackPointer();                                    // LD (nn), SP

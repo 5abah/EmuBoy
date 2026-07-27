@@ -52,27 +52,27 @@ std::uint8_t Bus::handleInterrupts()
     if (interrupts.pending & 0x1)
     {
         interrupts.IF.reset(interrupts.InterruptType::VBlank);
-        interrupts.IME = !interrupts.IME;
+        interrupts.IME = false;
     }
     else if (interrupts.pending & 0x2)
     {
         interrupts.IF.reset(interrupts.InterruptType::LCDStat);
-        interrupts.IME = !interrupts.IME;
+        interrupts.IME = false;
     }
     else if (interrupts.pending & 0x4)
     {
         interrupts.IF.reset(interrupts.InterruptType::Timer);
-        interrupts.IME = !interrupts.IME;
+        interrupts.IME = false;
     }
     else if (interrupts.pending & 0x8)
     {
         interrupts.IF.reset(interrupts.InterruptType::Serial);
-        interrupts.IME = !interrupts.IME;
+        interrupts.IME = false;
     }
     else if (interrupts.pending & 0x16)
     {
         interrupts.IF.reset(interrupts.InterruptType::Joypad);
-        interrupts.IME = !interrupts.IME;
+        interrupts.IME = false;
     }
 
     return 5;
