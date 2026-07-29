@@ -249,7 +249,7 @@ void test_xor_clearsHalfCarry()
         cpu.accumulatorRegisterArithmetic(CPU::Registers::ALU::XOR, static_cast<std::size_t>(CPU::Registers::REG8::B));
 
     assert(cpu.regs.reg8[static_cast<std::size_t>(CPU::Registers::REG8::A)] == 0xF0);
-    assert(cpu.regs.flag.test(CPU::Registers::Flags::HalfCarry) == false); // this is the bug that was fixed
+    assert(cpu.regs.flag.test(CPU::Registers::Flags::HalfCarry) == false);
     assert(cpu.regs.flag.test(CPU::Registers::Flags::Carry) == false);
     assert(cycles == 1);
     std::cout << "test_xor_clearsHalfCarry passed\n";
@@ -267,7 +267,7 @@ void test_or_clearsHalfCarry()
         cpu.accumulatorRegisterArithmetic(CPU::Registers::ALU::OR, static_cast<std::size_t>(CPU::Registers::REG8::B));
 
     assert(cpu.regs.reg8[static_cast<std::size_t>(CPU::Registers::REG8::A)] == 0x01);
-    assert(cpu.regs.flag.test(CPU::Registers::Flags::HalfCarry) == false); // same fix as XOR
+    assert(cpu.regs.flag.test(CPU::Registers::Flags::HalfCarry) == false);
     assert(cpu.regs.flag.test(CPU::Registers::Flags::Zero) == false);
     assert(cycles == 1);
     std::cout << "test_or_clearsHalfCarry passed\n";
@@ -285,7 +285,7 @@ void test_cp_doesNotModifyA()
         cpu.accumulatorRegisterArithmetic(CPU::Registers::ALU::CP, static_cast<std::size_t>(CPU::Registers::REG8::B));
 
     assert(cpu.regs.reg8[static_cast<std::size_t>(CPU::Registers::REG8::A)] == 0x05); // CP must NOT write back to A
-    assert(cpu.regs.flag.test(CPU::Registers::Flags::Zero) == true); // A == B, so this behaves like a zero result
+    assert(cpu.regs.flag.test(CPU::Registers::Flags::Zero) == true);
     assert(cpu.regs.flag.test(CPU::Registers::Flags::Subtraction) == true);
     assert(cycles == 1);
     std::cout << "test_cp_doesNotModifyA passed\n";
@@ -304,8 +304,8 @@ void test_incRegPair_noFlagsTouched()
     std::uint8_t cycles = cpu.incRegPair(static_cast<std::size_t>(CPU::Registers::RP::DE));
 
     assert(cpu.regs.get16(static_cast<std::size_t>(CPU::Registers::RP::DE)) == 0x0100);
-    assert(cpu.regs.flag.test(CPU::Registers::Flags::Zero) == true);  // untouched
-    assert(cpu.regs.flag.test(CPU::Registers::Flags::Carry) == true); // untouched
+    assert(cpu.regs.flag.test(CPU::Registers::Flags::Zero) == true);
+    assert(cpu.regs.flag.test(CPU::Registers::Flags::Carry) == true);
     assert(cycles == 2);
     std::cout << "test_incRegPair_noFlagsTouched passed\n";
 }
@@ -319,8 +319,6 @@ void test_decRegPair_actuallyDecrements()
 
     std::uint8_t cycles = cpu.decRegPair(static_cast<std::size_t>(CPU::Registers::RP::DE));
 
-    // this assert fails against the current code -- decRegPair currently
-    // writes the value back unchanged instead of subtracting 1
     assert(cpu.regs.get16(static_cast<std::size_t>(CPU::Registers::RP::DE)) == 0x00FF);
     assert(cycles == 2);
     std::cout << "test_decRegPair_actuallyDecrements passed\n";
@@ -446,9 +444,9 @@ void test_call_then_ret_returnsToCallSite()
 
     std::uint8_t retCycles = cpu.returnConditional(static_cast<std::uint8_t>(CPU::Registers::Conditions::Z));
 
-    assert(cpu.regs.PC == 0x0002); // back at the instruction after the original CALL
+    assert(cpu.regs.PC == 0x0002);
     assert(retCycles == 5);
-    assert(cpu.regs.get16(static_cast<std::size_t>(CPU::Registers::RP::SP)) == 0xFFFE); // SP restored
+    assert(cpu.regs.get16(static_cast<std::size_t>(CPU::Registers::RP::SP)) == 0xFFFE);
     std::cout << "test_call_then_ret_returnsToCallSite passed\n";
 }
 
@@ -462,8 +460,8 @@ void test_returnConditional_notTaken()
 
     std::uint8_t cycles = cpu.returnConditional(static_cast<std::uint8_t>(CPU::Registers::Conditions::Z));
 
-    assert(cpu.regs.PC == 0x0050);                                                      // untouched
-    assert(cpu.regs.get16(static_cast<std::size_t>(CPU::Registers::RP::SP)) == 0xFFFE); // untouched
+    assert(cpu.regs.PC == 0x0050);
+    assert(cpu.regs.get16(static_cast<std::size_t>(CPU::Registers::RP::SP)) == 0xFFFE);
     assert(cycles == 2);
     std::cout << "test_returnConditional_notTaken passed\n";
 }
@@ -479,8 +477,8 @@ void test_restart_pushesPCAndJumpsToVector()
     std::uint8_t cycles = cpu.restart(4); // RST 0x20 (y=4 -> 4*8=0x20)
 
     assert(cpu.regs.PC == 0x0020);
-    assert(bus.read(0xFFFD) == 0x01); // pushed PC high byte
-    assert(bus.read(0xFFFC) == 0x50); // pushed PC low byte
+    assert(bus.read(0xFFFD) == 0x01);
+    assert(bus.read(0xFFFC) == 0x50);
     assert(cpu.regs.get16(static_cast<std::size_t>(CPU::Registers::RP::SP)) == 0xFFFC);
     assert(cycles == 4);
     std::cout << "test_restart_pushesPCAndJumpsToVector passed\n";
@@ -499,19 +497,19 @@ void test_disableInterrupts()
     std::cout << "test_disableInterrupts passed\n";
 }
 
-void test_enableInterrupts()
+void test_enableInterrupts_setsPendingNotImmediate()
 {
     Bus bus{};
     CPU cpu{bus};
     bus.interrupts.IME = false;
+    bus.interrupts.IMEPendingEnable = false;
 
-    cpu.enableInterrupts();
+    std::uint8_t cycles = cpu.enableInterrupts();
 
-    assert(bus.interrupts.IME == true);
-    std::cout << "test_enableInterrupts passed\n";
-    // NOTE: this test does not check the real-hardware one-instruction
-    // delay on EI -- go back and confirm your implementation actually
-    // has that delay once step() is driving this instead of a direct call.
+    assert(bus.interrupts.IMEPendingEnable == true); // EI defers -- doesn't flip IME directly
+    assert(bus.interrupts.IME == false);             // still false right after the call
+    assert(cycles == 1);
+    std::cout << "test_enableInterrupts_setsPendingNotImmediate passed\n";
 }
 
 void test_jmpToHL()
@@ -544,6 +542,375 @@ void test_retFromInterrupt()
     std::cout << "test_retFromInterrupt passed\n";
 }
 
+// ---------- handleInterrupts ----------
+void test_handleInterrupts_servicesVBlank()
+{
+    Bus bus{};
+    CPU cpu{bus};
+    cpu.regs.PC = 0x0150;
+    cpu.regs.set16(static_cast<std::size_t>(CPU::Registers::RP::SP), 0xFFFE);
+
+    bus.interrupts.IME = true;
+    bus.interrupts.IE.set(0); // VBlank
+    bus.interrupts.IF.set(0);
+
+    std::uint8_t cycles = cpu.handleInterrupts();
+
+    assert(cpu.regs.PC == 0x0040);
+    assert(bus.read(0xFFFD) == 0x01); // pushed return address high byte
+    assert(bus.read(0xFFFC) == 0x50); // pushed return address low byte
+    assert(cpu.regs.get16(static_cast<std::size_t>(CPU::Registers::RP::SP)) == 0xFFFC);
+    assert(bus.interrupts.IF.test(0) == false); // bit cleared
+    assert(bus.interrupts.IME == false);        // cleared while servicing
+    assert(cycles == 5);
+    std::cout << "test_handleInterrupts_servicesVBlank passed\n";
+}
+
+void test_handleInterrupts_priorityOrder()
+{
+    Bus bus{};
+    CPU cpu{bus};
+    cpu.regs.PC = 0x0100;
+    cpu.regs.set16(static_cast<std::size_t>(CPU::Registers::RP::SP), 0xFFFE);
+
+    bus.interrupts.IME = true;
+    bus.interrupts.IE.set(0); // VBlank
+    bus.interrupts.IE.set(2); // Timer
+    bus.interrupts.IF.set(0); // VBlank pending
+    bus.interrupts.IF.set(2); // Timer also pending
+
+    std::uint8_t cycles = cpu.handleInterrupts();
+
+    assert(cpu.regs.PC == 0x0040);              // VBlank (higher priority) serviced first
+    assert(bus.interrupts.IF.test(0) == false); // VBlank bit cleared
+    assert(bus.interrupts.IF.test(2) == true);  // Timer still pending, untouched this call
+    assert(cycles == 5);
+    std::cout << "test_handleInterrupts_priorityOrder passed\n";
+}
+
+void test_handleInterrupts_doesNothingWhenIMEFalse()
+{
+    Bus bus{};
+    CPU cpu{bus};
+    cpu.regs.PC = 0x0100;
+
+    bus.interrupts.IME = false;
+    bus.interrupts.IE.set(0);
+    bus.interrupts.IF.set(0);
+
+    std::uint8_t cycles = cpu.handleInterrupts();
+
+    assert(cpu.regs.PC == 0x0100);             // untouched
+    assert(bus.interrupts.IF.test(0) == true); // still pending, nothing serviced
+    assert(cycles == 0);                       // did nothing -- must not cost cycles
+    std::cout << "test_handleInterrupts_doesNothingWhenIMEFalse passed\n";
+}
+
+// ---------- LD (BC),A / LD A,(BC) / LD (DE),A / LD A,(DE) ----------
+void test_ldIndirectBCA()
+{
+    Bus bus{};
+    CPU cpu{bus};
+    cpu.regs.set16(static_cast<std::size_t>(CPU::Registers::RP::BC), 0xC000);
+    cpu.regs.reg8[static_cast<std::size_t>(CPU::Registers::REG8::A)] = 0x42;
+
+    std::uint8_t cycles = cpu.ldIndirectBCA();
+
+    assert(bus.read(0xC000) == 0x42);
+    assert(cycles == 2);
+    std::cout << "test_ldIndirectBCA passed\n";
+}
+
+void test_ldAIndirectBC()
+{
+    Bus bus{};
+    CPU cpu{bus};
+    cpu.regs.set16(static_cast<std::size_t>(CPU::Registers::RP::BC), 0xC000);
+    bus.write(0xC000, 0x77);
+
+    std::uint8_t cycles = cpu.ldAIndirectBC();
+
+    assert(cpu.regs.reg8[static_cast<std::size_t>(CPU::Registers::REG8::A)] == 0x77);
+    assert(cycles == 2);
+    std::cout << "test_ldAIndirectBC passed\n";
+}
+
+void test_ldIndirectDEA()
+{
+    Bus bus{};
+    CPU cpu{bus};
+    cpu.regs.set16(static_cast<std::size_t>(CPU::Registers::RP::DE), 0xD000);
+    cpu.regs.reg8[static_cast<std::size_t>(CPU::Registers::REG8::A)] = 0x11;
+
+    std::uint8_t cycles = cpu.ldIndirectDEA();
+
+    assert(bus.read(0xD000) == 0x11);
+    assert(cycles == 2);
+    std::cout << "test_ldIndirectDEA passed\n";
+}
+
+void test_ldAIndirectDE()
+{
+    Bus bus{};
+    CPU cpu{bus};
+    cpu.regs.set16(static_cast<std::size_t>(CPU::Registers::RP::DE), 0xD000);
+    bus.write(0xD000, 0x99);
+
+    std::uint8_t cycles = cpu.ldAIndirectDE();
+
+    assert(cpu.regs.reg8[static_cast<std::size_t>(CPU::Registers::REG8::A)] == 0x99);
+    assert(cycles == 2);
+    std::cout << "test_ldAIndirectDE passed\n";
+}
+
+// ---------- LDH (n),A / LDH A,(n) ----------
+void test_loadHighAddressImmediate()
+{
+    Bus bus{};
+    CPU cpu{bus};
+    cpu.regs.PC = 0x0000;
+    bus.write(0x0000, 0x80); // n8 -- target address 0xFF80
+    cpu.regs.reg8[static_cast<std::size_t>(CPU::Registers::REG8::A)] = 0x5A;
+
+    std::uint8_t cycles = cpu.loadHighAddressImmediate();
+
+    assert(bus.read(0xFF80) == 0x5A);
+    assert(cpu.regs.PC == 0x0001);
+    assert(cycles == 3);
+    std::cout << "test_loadHighAddressImmediate passed\n";
+}
+
+void test_loadAHighAddressImmediate()
+{
+    Bus bus{};
+    CPU cpu{bus};
+    cpu.regs.PC = 0x0000;
+    bus.write(0x0000, 0x80);
+    bus.write(0xFF80, 0xA5);
+
+    std::uint8_t cycles = cpu.loadAHighAddressImmediate();
+
+    assert(cpu.regs.reg8[static_cast<std::size_t>(CPU::Registers::REG8::A)] == 0xA5);
+    assert(cpu.regs.PC == 0x0001);
+    assert(cycles == 3);
+    std::cout << "test_loadAHighAddressImmediate passed\n";
+}
+
+// ---------- LD (C),A / LD A,(C) ----------
+void test_loadHighAddressC()
+{
+    Bus bus{};
+    CPU cpu{bus};
+    cpu.regs.reg8[static_cast<std::size_t>(CPU::Registers::REG8::C)] = 0x90;
+    cpu.regs.reg8[static_cast<std::size_t>(CPU::Registers::REG8::A)] = 0x33;
+
+    std::uint8_t cycles = cpu.loadHighAddressC();
+
+    assert(bus.read(0xFF90) == 0x33);
+    assert(cycles == 2);
+    std::cout << "test_loadHighAddressC passed\n";
+}
+
+void test_loadAHighAddressC()
+{
+    Bus bus{};
+    CPU cpu{bus};
+    cpu.regs.reg8[static_cast<std::size_t>(CPU::Registers::REG8::C)] = 0x90;
+    bus.write(0xFF90, 0x66);
+
+    std::uint8_t cycles = cpu.loadAHighAddressC();
+
+    assert(cpu.regs.reg8[static_cast<std::size_t>(CPU::Registers::REG8::A)] == 0x66);
+    assert(cycles == 2);
+    std::cout << "test_loadAHighAddressC passed\n";
+}
+
+// ---------- LD (nn),A / LD A,(nn) ----------
+void test_loadAddressA()
+{
+    Bus bus{};
+    CPU cpu{bus};
+    cpu.regs.PC = 0x0000;
+    bus.write(0x0000, 0x00); // nn low
+    bus.write(0x0001, 0xC0); // nn high -- target 0xC000
+    cpu.regs.reg8[static_cast<std::size_t>(CPU::Registers::REG8::A)] = 0x7E;
+
+    std::uint8_t cycles = cpu.loadAddressA();
+
+    assert(bus.read(0xC000) == 0x7E);
+    assert(cpu.regs.PC == 0x0002);
+    assert(cycles == 4);
+    std::cout << "test_loadAddressA passed\n";
+}
+
+void test_loadAAddress()
+{
+    Bus bus{};
+    CPU cpu{bus};
+    cpu.regs.PC = 0x0000;
+    bus.write(0x0000, 0x00);
+    bus.write(0x0001, 0xC0);
+    bus.write(0xC000, 0x3C); // the actual value at the address -- this is what should end up in A
+
+    std::uint8_t cycles = cpu.loadAAddress();
+
+    assert(cpu.regs.reg8[static_cast<std::size_t>(CPU::Registers::REG8::A)] == 0x3C);
+    assert(cpu.regs.PC == 0x0002);
+    assert(cycles == 4);
+    std::cout << "test_loadAAddress passed\n";
+}
+
+// ---------- ADD SP,e ----------
+void test_addSPOffset_positive()
+{
+    Bus bus{};
+    CPU cpu{bus};
+    cpu.regs.PC = 0x0000;
+    bus.write(0x0000, 0x05);
+    cpu.regs.set16(static_cast<std::size_t>(CPU::Registers::RP::SP), 0xFFF8);
+
+    std::uint8_t cycles = cpu.addSPOffset();
+
+    assert(cpu.regs.get16(static_cast<std::size_t>(CPU::Registers::RP::SP)) == 0xFFFD);
+    assert(cpu.regs.flag.test(CPU::Registers::Flags::Zero) == false);
+    assert(cpu.regs.flag.test(CPU::Registers::Flags::Subtraction) == false);
+    assert(cycles == 4);
+    std::cout << "test_addSPOffset_positive passed\n";
+}
+
+// Same underlying bug/fix as ldHLStackPointerPlusOffset -- mirrored test shape
+void test_addSPOffset_halfCarry()
+{
+    Bus bus{};
+    CPU cpu{bus};
+    cpu.regs.PC = 0x0000;
+    bus.write(0x0000, 0x01);
+    cpu.regs.set16(static_cast<std::size_t>(CPU::Registers::RP::SP), 0x000F);
+
+    cpu.addSPOffset();
+
+    assert(cpu.regs.flag.test(CPU::Registers::Flags::HalfCarry) == true);
+    assert(cpu.regs.flag.test(CPU::Registers::Flags::Carry) == false);
+    assert(cpu.regs.get16(static_cast<std::size_t>(CPU::Registers::RP::SP)) == 0x0010);
+    std::cout << "test_addSPOffset_halfCarry passed\n";
+}
+
+void test_addSPOffset_carry()
+{
+    Bus bus{};
+    CPU cpu{bus};
+    cpu.regs.PC = 0x0000;
+    bus.write(0x0000, 0x01);
+    cpu.regs.set16(static_cast<std::size_t>(CPU::Registers::RP::SP), 0x00FF);
+
+    cpu.addSPOffset();
+
+    assert(cpu.regs.flag.test(CPU::Registers::Flags::Carry) == true);
+    assert(cpu.regs.get16(static_cast<std::size_t>(CPU::Registers::RP::SP)) == 0x0100);
+    std::cout << "test_addSPOffset_carry passed\n";
+}
+
+void test_addSPOffset_negative()
+{
+    Bus bus{};
+    CPU cpu{bus};
+    cpu.regs.PC = 0x0000;
+    bus.write(0x0000, 0xFE); // -2
+    cpu.regs.set16(static_cast<std::size_t>(CPU::Registers::RP::SP), 0x0010);
+
+    cpu.addSPOffset();
+
+    assert(cpu.regs.get16(static_cast<std::size_t>(CPU::Registers::RP::SP)) == 0x000E);
+    std::cout << "test_addSPOffset_negative passed\n";
+}
+
+// ---------- JP nn (unconditional) ----------
+void test_jmpImmediate()
+{
+    Bus bus{};
+    CPU cpu{bus};
+    cpu.regs.PC = 0x0000;
+    bus.write(0x0000, 0x34);
+    bus.write(0x0001, 0x12);
+
+    std::uint8_t cycles = cpu.jmpImmediate();
+
+    assert(cpu.regs.PC == 0x1234);
+    assert(cycles == 4);
+    std::cout << "test_jmpImmediate passed\n";
+}
+
+// ---------- CALL nn / RET (unconditional) round trip ----------
+void test_callImmediate_then_returnUnconditional()
+{
+    Bus bus{};
+    CPU cpu{bus};
+    cpu.regs.PC = 0x0000;
+    cpu.regs.set16(static_cast<std::size_t>(CPU::Registers::RP::SP), 0xFFFE);
+
+    bus.write(0x0000, 0x34);
+    bus.write(0x0001, 0x12); // call target 0x1234
+
+    std::uint8_t callCycles = cpu.callImmediate();
+
+    assert(cpu.regs.PC == 0x1234);
+    assert(bus.read(0xFFFD) == 0x00); // return address high byte (PC was 0x0002 pre-jump)
+    assert(bus.read(0xFFFC) == 0x02); // return address low byte
+    assert(cpu.regs.get16(static_cast<std::size_t>(CPU::Registers::RP::SP)) == 0xFFFC);
+    assert(callCycles == 6);
+
+    std::uint8_t retCycles = cpu.returnUnconditional();
+
+    assert(cpu.regs.PC == 0x0002); // back at the instruction after CALL
+    assert(cpu.regs.get16(static_cast<std::size_t>(CPU::Registers::RP::SP)) == 0xFFFE); // SP restored
+    assert(retCycles == 4);
+    std::cout << "test_callImmediate_then_returnUnconditional passed\n";
+}
+
+// ---------- HALT / STOP: IME must be untouched ----------
+void test_halt_doesNotTouchIME()
+{
+    Bus bus{};
+    CPU cpu{bus};
+    bus.interrupts.IME = true;
+
+    std::uint8_t cycles = cpu.halt();
+
+    assert(bus.interrupts.IME == true); // HALT must not clear IME
+    assert(cycles == 1);
+    std::cout << "test_halt_doesNotTouchIME passed\n";
+}
+
+void test_stop_doesNotTouchIME()
+{
+    Bus bus{};
+    CPU cpu{bus};
+    bus.interrupts.IME = true;
+
+    std::uint8_t cycles = cpu.stop();
+
+    assert(bus.interrupts.IME == true); // STOP must not clear IME either
+    assert(cycles == 1);
+    std::cout << "test_stop_doesNotTouchIME passed\n";
+}
+
+void test_handleInterrupts_doesNothingWhenNoneEnabled()
+{
+    Bus bus{};
+    CPU cpu{bus};
+    cpu.regs.PC = 0x0100;
+
+    bus.interrupts.IME = true;
+    bus.interrupts.IF.set(0); // requested...
+    // ...but IE never set, so nothing is actually enabled
+
+    std::uint8_t cycles = cpu.handleInterrupts();
+
+    assert(cpu.regs.PC == 0x0100); // untouched
+    assert(cycles == 0);           // nothing pending to service -- must not cost cycles
+    std::cout << "test_handleInterrupts_doesNothingWhenNoneEnabled passed\n";
+}
+
 // ---------- conditionalJump: all four conditions, taken and not-taken ----------
 void test_jp_z_taken()
 {
@@ -551,7 +918,7 @@ void test_jp_z_taken()
     CPU cpu{bus};
     cpu.regs.PC = 0x0000;
     bus.write(0x0000, 0x34);
-    bus.write(0x0001, 0x12); // target 0x1234
+    bus.write(0x0001, 0x12);
     cpu.regs.flag.set(CPU::Registers::Flags::Zero);
 
     std::uint8_t cycles = cpu.conditionalJump(static_cast<std::uint8_t>(CPU::Registers::Conditions::Z));
@@ -572,7 +939,7 @@ void test_jp_z_notTaken()
 
     std::uint8_t cycles = cpu.conditionalJump(static_cast<std::uint8_t>(CPU::Registers::Conditions::Z));
 
-    assert(cpu.regs.PC == 0x0002); // fetched both bytes, did NOT jump
+    assert(cpu.regs.PC == 0x0002);
     assert(cycles == 3);
     std::cout << "test_jp_z_notTaken passed\n";
 }
@@ -583,7 +950,7 @@ void test_jp_nc_taken()
     CPU cpu{bus};
     cpu.regs.PC = 0x0000;
     bus.write(0x0000, 0x00);
-    bus.write(0x0001, 0x20); // target 0x2000
+    bus.write(0x0001, 0x20);
     cpu.regs.flag.reset(CPU::Registers::Flags::Carry);
 
     std::uint8_t cycles = cpu.conditionalJump(static_cast<std::uint8_t>(CPU::Registers::Conditions::NC));
@@ -599,12 +966,12 @@ void test_jr_c_forward()
     Bus bus{};
     CPU cpu{bus};
     cpu.regs.PC = 0x0000;
-    bus.write(0x0000, 0x05); // +5 offset
+    bus.write(0x0000, 0x05);
     cpu.regs.flag.set(CPU::Registers::Flags::Carry);
 
     std::uint8_t cycles = cpu.relativeConditionalJump(static_cast<std::uint8_t>(CPU::Registers::Conditions::C));
 
-    assert(cpu.regs.PC == 0x0006); // 0x0001 (after fetching the offset byte) + 5
+    assert(cpu.regs.PC == 0x0006);
     assert(cycles == 3);
     std::cout << "test_jr_c_forward passed\n";
 }
@@ -614,12 +981,12 @@ void test_jr_c_backward()
     Bus bus{};
     CPU cpu{bus};
     cpu.regs.PC = 0x0000;
-    bus.write(0x0000, 0xFE); // -2 as signed 8-bit
+    bus.write(0x0000, 0xFE);
     cpu.regs.flag.set(CPU::Registers::Flags::Carry);
 
     std::uint8_t cycles = cpu.relativeConditionalJump(static_cast<std::uint8_t>(CPU::Registers::Conditions::C));
 
-    assert(cpu.regs.PC == 0xFFFF); // 0x0001 - 2, wraps -- confirm this is the behavior you actually want
+    assert(cpu.regs.PC == 0xFFFF);
     assert(cycles == 3);
     std::cout << "test_jr_c_backward passed\n";
 }
@@ -630,27 +997,26 @@ void test_jr_nz_notTaken()
     CPU cpu{bus};
     cpu.regs.PC = 0x0000;
     bus.write(0x0000, 0x05);
-    cpu.regs.flag.set(CPU::Registers::Flags::Zero); // NZ condition fails when Zero IS set
+    cpu.regs.flag.set(CPU::Registers::Flags::Zero);
 
     std::uint8_t cycles = cpu.relativeConditionalJump(static_cast<std::uint8_t>(CPU::Registers::Conditions::NZ));
 
-    assert(cpu.regs.PC == 0x0001); // did not jump
+    assert(cpu.regs.PC == 0x0001);
     assert(cycles == 2);
     std::cout << "test_jr_nz_notTaken passed\n";
 }
 
-// ---------- relativeJump: unconditional JR e (new -- covers the y=3 case that
-// was wrongly wired to relativeConditionalJump() with no condition) ----------
+// ---------- relativeJump: unconditional JR e ----------
 void test_relativeJump_forward()
 {
     Bus bus{};
     CPU cpu{bus};
     cpu.regs.PC = 0x0000;
-    bus.write(0x0000, 0x05); // +5 offset
+    bus.write(0x0000, 0x05);
 
     std::uint8_t cycles = cpu.relativeJump();
 
-    assert(cpu.regs.PC == 0x0006); // 0x0001 (after fetching offset) + 5
+    assert(cpu.regs.PC == 0x0006);
     assert(cycles == 3);
     std::cout << "test_relativeJump_forward passed\n";
 }
@@ -660,11 +1026,11 @@ void test_relativeJump_backward_wraps()
     Bus bus{};
     CPU cpu{bus};
     cpu.regs.PC = 0x0000;
-    bus.write(0x0000, 0xFE); // -2 as signed 8-bit
+    bus.write(0x0000, 0xFE);
 
     std::uint8_t cycles = cpu.relativeJump();
 
-    assert(cpu.regs.PC == 0xFFFF); // 0x0001 - 2, wraps
+    assert(cpu.regs.PC == 0xFFFF);
     assert(cycles == 3);
     std::cout << "test_relativeJump_backward_wraps passed\n";
 }
@@ -674,13 +1040,11 @@ void test_step_jr_unconditional_viaStep()
     Bus bus{};
     CPU cpu{bus};
     cpu.regs.PC = 0x0000;
-    bus.write(0x0000, 0x18); // JR e -- opcode 0x18, x=0 y=3 z=0
-    bus.write(0x0001, 0x0A); // +10 offset
+    bus.write(0x0000, 0x18);
+    bus.write(0x0001, 0x0A);
 
     std::uint8_t cycles = cpu.step();
 
-    // step()'s own PC++ after the opcode fetch lands PC at 0x0001 before
-    // relativeJump() reads the offset and adds it
     assert(cpu.regs.PC == 0x000C);
     assert(cycles == 3);
     std::cout << "test_step_jr_unconditional_viaStep passed\n";
@@ -692,12 +1056,12 @@ void test_rlca()
     Bus bus{};
     CPU cpu{bus};
 
-    cpu.regs.reg8[static_cast<std::size_t>(CPU::Registers::REG8::A)] = 0x85; // 0b10000101
+    cpu.regs.reg8[static_cast<std::size_t>(CPU::Registers::REG8::A)] = 0x85;
 
     std::uint8_t cycles = cpu.rotateLeftAccumulator();
 
-    assert(cpu.regs.reg8[static_cast<std::size_t>(CPU::Registers::REG8::A)] == 0x0B); // 0b00001011
-    assert(cpu.regs.flag.test(CPU::Registers::Flags::Carry) == true);                 // old bit 7 was 1
+    assert(cpu.regs.reg8[static_cast<std::size_t>(CPU::Registers::REG8::A)] == 0x0B);
+    assert(cpu.regs.flag.test(CPU::Registers::Flags::Carry) == true);
     assert(cpu.regs.flag.test(CPU::Registers::Flags::Zero) == false);
     assert(cycles == 1);
     std::cout << "test_rlca passed\n";
@@ -708,15 +1072,14 @@ void test_rla()
     Bus bus{};
     CPU cpu{bus};
 
-    cpu.regs.reg8[static_cast<std::size_t>(CPU::Registers::REG8::A)] = 0x80; // 0b10000000
-    cpu.regs.flag.reset(CPU::Registers::Flags::Carry);                       // old carry-in = 0
+    cpu.regs.reg8[static_cast<std::size_t>(CPU::Registers::REG8::A)] = 0x80;
+    cpu.regs.flag.reset(CPU::Registers::Flags::Carry);
 
     std::uint8_t cycles = cpu.rotateLeftAccumulatorCarry();
 
-    // bit 7 (1) becomes the new carry; old carry (0) shifts into bit 0
     assert(cpu.regs.reg8[static_cast<std::size_t>(CPU::Registers::REG8::A)] == 0x00);
     assert(cpu.regs.flag.test(CPU::Registers::Flags::Carry) == true);
-    assert(cpu.regs.flag.test(CPU::Registers::Flags::Zero) == false); // RLA always clears Z, even though result is 0
+    assert(cpu.regs.flag.test(CPU::Registers::Flags::Zero) == false);
     assert(cycles == 1);
     std::cout << "test_rla passed\n";
 }
@@ -726,12 +1089,12 @@ void test_rrca()
     Bus bus{};
     CPU cpu{bus};
 
-    cpu.regs.reg8[static_cast<std::size_t>(CPU::Registers::REG8::A)] = 0x81; // 0b10000001
+    cpu.regs.reg8[static_cast<std::size_t>(CPU::Registers::REG8::A)] = 0x81;
 
     std::uint8_t cycles = cpu.rotateRightAccumulator();
 
-    assert(cpu.regs.reg8[static_cast<std::size_t>(CPU::Registers::REG8::A)] == 0xC0); // 0b11000000
-    assert(cpu.regs.flag.test(CPU::Registers::Flags::Carry) == true);                 // old bit 0 was 1
+    assert(cpu.regs.reg8[static_cast<std::size_t>(CPU::Registers::REG8::A)] == 0xC0);
+    assert(cpu.regs.flag.test(CPU::Registers::Flags::Carry) == true);
     assert(cpu.regs.flag.test(CPU::Registers::Flags::Zero) == false);
     assert(cycles == 1);
     std::cout << "test_rrca passed\n";
@@ -742,12 +1105,11 @@ void test_rra()
     Bus bus{};
     CPU cpu{bus};
 
-    cpu.regs.reg8[static_cast<std::size_t>(CPU::Registers::REG8::A)] = 0x01; // 0b00000001
-    cpu.regs.flag.set(CPU::Registers::Flags::Carry);                         // old carry-in = 1
+    cpu.regs.reg8[static_cast<std::size_t>(CPU::Registers::REG8::A)] = 0x01;
+    cpu.regs.flag.set(CPU::Registers::Flags::Carry);
 
     std::uint8_t cycles = cpu.rotateRightAccumulatorCarry();
 
-    // bit 0 (1) becomes the new carry; old carry (1) shifts into bit 7
     assert(cpu.regs.reg8[static_cast<std::size_t>(CPU::Registers::REG8::A)] == 0x80);
     assert(cpu.regs.flag.test(CPU::Registers::Flags::Carry) == true);
     assert(cpu.regs.flag.test(CPU::Registers::Flags::Zero) == false);
@@ -761,11 +1123,11 @@ void test_cpl()
     Bus bus{};
     CPU cpu{bus};
 
-    cpu.regs.reg8[static_cast<std::size_t>(CPU::Registers::REG8::A)] = 0x35; // 0b00110101
+    cpu.regs.reg8[static_cast<std::size_t>(CPU::Registers::REG8::A)] = 0x35;
 
     std::uint8_t cycles = cpu.complementAccumulator();
 
-    assert(cpu.regs.reg8[static_cast<std::size_t>(CPU::Registers::REG8::A)] == 0xCA); // 0b11001010
+    assert(cpu.regs.reg8[static_cast<std::size_t>(CPU::Registers::REG8::A)] == 0xCA);
     assert(cpu.regs.flag.test(CPU::Registers::Flags::Subtraction) == true);
     assert(cpu.regs.flag.test(CPU::Registers::Flags::HalfCarry) == true);
     assert(cycles == 1);
@@ -817,7 +1179,6 @@ void test_daa_afterAddWithHalfCarry()
     Bus bus{};
     CPU cpu{bus};
 
-    // Simulates the state right after ADD A: 0x08 + 0x08 -> raw result 0x10, H set (nibble overflow)
     cpu.regs.reg8[static_cast<std::size_t>(CPU::Registers::REG8::A)] = 0x10;
     cpu.regs.flag.set(CPU::Registers::Flags::HalfCarry);
     cpu.regs.flag.reset(CPU::Registers::Flags::Carry);
@@ -825,9 +1186,9 @@ void test_daa_afterAddWithHalfCarry()
 
     std::uint8_t cycles = cpu.decimalAdjustAccumulator();
 
-    assert(cpu.regs.reg8[static_cast<std::size_t>(CPU::Registers::REG8::A)] == 0x16); // correct BCD result for 8+8=16
-    assert(cpu.regs.flag.test(CPU::Registers::Flags::HalfCarry) == false);            // always forced to 0
-    assert(cpu.regs.flag.test(CPU::Registers::Flags::Carry) == false);                // unaffected, wasn't set going in
+    assert(cpu.regs.reg8[static_cast<std::size_t>(CPU::Registers::REG8::A)] == 0x16);
+    assert(cpu.regs.flag.test(CPU::Registers::Flags::HalfCarry) == false);
+    assert(cpu.regs.flag.test(CPU::Registers::Flags::Carry) == false);
     assert(cycles == 1);
     std::cout << "test_daa_afterAddWithHalfCarry passed\n";
 }
@@ -837,7 +1198,6 @@ void test_daa_afterAddCausingByteOverflow()
     Bus bus{};
     CPU cpu{bus};
 
-    // Simulates raw ADD A: 0x99 + 0x01 -> 0x9A, no half-carry (9+1=0xA, not >0xF)
     cpu.regs.reg8[static_cast<std::size_t>(CPU::Registers::REG8::A)] = 0x9A;
     cpu.regs.flag.reset(CPU::Registers::Flags::HalfCarry);
     cpu.regs.flag.reset(CPU::Registers::Flags::Carry);
@@ -845,10 +1205,9 @@ void test_daa_afterAddCausingByteOverflow()
 
     std::uint8_t cycles = cpu.decimalAdjustAccumulator();
 
-    // 99 + 1 = 100 decimal -- doesn't fit in one BCD byte, wraps to 00 with carry out
     assert(cpu.regs.reg8[static_cast<std::size_t>(CPU::Registers::REG8::A)] == 0x00);
     assert(cpu.regs.flag.test(CPU::Registers::Flags::Zero) == true);
-    assert(cpu.regs.flag.test(CPU::Registers::Flags::Carry) == true); // DAA itself sets this here
+    assert(cpu.regs.flag.test(CPU::Registers::Flags::Carry) == true);
     assert(cycles == 1);
     std::cout << "test_daa_afterAddCausingByteOverflow passed\n";
 }
@@ -858,13 +1217,13 @@ void test_rlCarryCB_registerOperand()
 {
     Bus bus{};
     CPU cpu{bus};
-    cpu.regs.reg8[static_cast<std::size_t>(CPU::Registers::REG8::B)] = 0x80; // 0b10000000
+    cpu.regs.reg8[static_cast<std::size_t>(CPU::Registers::REG8::B)] = 0x80;
     cpu.regs.flag.reset(CPU::Registers::Flags::Carry);
 
     std::uint8_t cycles = cpu.rotateLeftCarryCB(static_cast<std::uint8_t>(CPU::Registers::REG8::B));
 
-    assert(cpu.regs.reg8[static_cast<std::size_t>(CPU::Registers::REG8::B)] == 0x00); // old carry(0) -> bit0
-    assert(cpu.regs.flag.test(CPU::Registers::Flags::Carry) == true);                 // old bit7(1) -> carry
+    assert(cpu.regs.reg8[static_cast<std::size_t>(CPU::Registers::REG8::B)] == 0x00);
+    assert(cpu.regs.flag.test(CPU::Registers::Flags::Carry) == true);
     assert(cpu.regs.flag.test(CPU::Registers::Flags::Zero) == true);
     assert(cycles == 2);
     std::cout << "test_rlCarryCB_registerOperand passed\n";
@@ -880,8 +1239,8 @@ void test_rlCarryCB_hlMemoryOperand()
 
     std::uint8_t cycles = cpu.rotateLeftCarryCB(6);
 
-    assert(bus.read(0xC000) == 0x03); // old carry(1) -> bit0, bit1 shifted from old bit0
-    assert(cpu.regs.flag.test(CPU::Registers::Flags::Carry) == false); // old bit7 was 0
+    assert(bus.read(0xC000) == 0x03);
+    assert(cpu.regs.flag.test(CPU::Registers::Flags::Carry) == false);
     assert(cycles == 4);
     std::cout << "test_rlCarryCB_hlMemoryOperand passed\n";
 }
@@ -896,8 +1255,8 @@ void test_rrCarryCB_registerOperand()
 
     std::uint8_t cycles = cpu.rotateRightCarryCB(static_cast<std::uint8_t>(CPU::Registers::REG8::B));
 
-    assert(cpu.regs.reg8[static_cast<std::size_t>(CPU::Registers::REG8::B)] == 0x80); // old carry(1) -> bit7
-    assert(cpu.regs.flag.test(CPU::Registers::Flags::Carry) == true);                 // old bit0 was 1
+    assert(cpu.regs.reg8[static_cast<std::size_t>(CPU::Registers::REG8::B)] == 0x80);
+    assert(cpu.regs.flag.test(CPU::Registers::Flags::Carry) == true);
     assert(cycles == 2);
     std::cout << "test_rrCarryCB_registerOperand passed\n";
 }
@@ -924,12 +1283,12 @@ void test_sla()
 {
     Bus bus{};
     CPU cpu{bus};
-    cpu.regs.reg8[static_cast<std::size_t>(CPU::Registers::REG8::B)] = 0x85; // 0b10000101
+    cpu.regs.reg8[static_cast<std::size_t>(CPU::Registers::REG8::B)] = 0x85;
 
     std::uint8_t cycles = cpu.shiftLeftArithmeticCB(static_cast<std::uint8_t>(CPU::Registers::REG8::B));
 
-    assert(cpu.regs.reg8[static_cast<std::size_t>(CPU::Registers::REG8::B)] == 0x0A); // 0b00001010
-    assert(cpu.regs.flag.test(CPU::Registers::Flags::Carry) == true);                 // old bit7 was 1
+    assert(cpu.regs.reg8[static_cast<std::size_t>(CPU::Registers::REG8::B)] == 0x0A);
+    assert(cpu.regs.flag.test(CPU::Registers::Flags::Carry) == true);
     assert(cycles == 2);
     std::cout << "test_sla passed\n";
 }
@@ -938,12 +1297,12 @@ void test_sra_preservesSignBit()
 {
     Bus bus{};
     CPU cpu{bus};
-    cpu.regs.reg8[static_cast<std::size_t>(CPU::Registers::REG8::B)] = 0x85; // 0b10000101
+    cpu.regs.reg8[static_cast<std::size_t>(CPU::Registers::REG8::B)] = 0x85;
 
     std::uint8_t cycles = cpu.shiftRightArithmeticCB(static_cast<std::uint8_t>(CPU::Registers::REG8::B));
 
-    assert(cpu.regs.reg8[static_cast<std::size_t>(CPU::Registers::REG8::B)] == 0xC2); // 0b11000010, bit7 preserved
-    assert(cpu.regs.flag.test(CPU::Registers::Flags::Carry) == true);                 // old bit0 was 1
+    assert(cpu.regs.reg8[static_cast<std::size_t>(CPU::Registers::REG8::B)] == 0xC2);
+    assert(cpu.regs.flag.test(CPU::Registers::Flags::Carry) == true);
     assert(cycles == 2);
     std::cout << "test_sra_preservesSignBit passed\n";
 }
@@ -952,11 +1311,11 @@ void test_srl_zeroesTopBit()
 {
     Bus bus{};
     CPU cpu{bus};
-    cpu.regs.reg8[static_cast<std::size_t>(CPU::Registers::REG8::B)] = 0x85; // 0b10000101
+    cpu.regs.reg8[static_cast<std::size_t>(CPU::Registers::REG8::B)] = 0x85;
 
     std::uint8_t cycles = cpu.shiftRightLogicalCB(static_cast<std::uint8_t>(CPU::Registers::REG8::B));
 
-    assert(cpu.regs.reg8[static_cast<std::size_t>(CPU::Registers::REG8::B)] == 0x42); // 0b01000010, bit7 forced 0
+    assert(cpu.regs.reg8[static_cast<std::size_t>(CPU::Registers::REG8::B)] == 0x42);
     assert(cpu.regs.flag.test(CPU::Registers::Flags::Carry) == true);
     assert(cycles == 2);
     std::cout << "test_srl_zeroesTopBit passed\n";
@@ -967,12 +1326,12 @@ void test_swap()
 {
     Bus bus{};
     CPU cpu{bus};
-    cpu.regs.reg8[static_cast<std::size_t>(CPU::Registers::REG8::B)] = 0xA5; // 0b10100101
+    cpu.regs.reg8[static_cast<std::size_t>(CPU::Registers::REG8::B)] = 0xA5;
 
     std::uint8_t cycles = cpu.swapNibblesCB(static_cast<std::uint8_t>(CPU::Registers::REG8::B));
 
     assert(cpu.regs.reg8[static_cast<std::size_t>(CPU::Registers::REG8::B)] == 0x5A);
-    assert(cpu.regs.flag.test(CPU::Registers::Flags::Carry) == false); // always cleared
+    assert(cpu.regs.flag.test(CPU::Registers::Flags::Carry) == false);
     assert(cycles == 2);
     std::cout << "test_swap passed\n";
 }
@@ -983,14 +1342,14 @@ void test_bit_setWhenBitClear()
     Bus bus{};
     CPU cpu{bus};
     cpu.regs.reg8[static_cast<std::size_t>(CPU::Registers::REG8::B)] = 0x00;
-    cpu.regs.flag.set(CPU::Registers::Flags::Carry); // confirm untouched
+    cpu.regs.flag.set(CPU::Registers::Flags::Carry);
 
     std::uint8_t cycles = cpu.testBit(3, static_cast<std::uint8_t>(CPU::Registers::REG8::B));
 
-    assert(cpu.regs.flag.test(CPU::Registers::Flags::Zero) == true); // bit 3 was 0
+    assert(cpu.regs.flag.test(CPU::Registers::Flags::Zero) == true);
     assert(cpu.regs.flag.test(CPU::Registers::Flags::HalfCarry) == true);
-    assert(cpu.regs.flag.test(CPU::Registers::Flags::Carry) == true);                 // untouched
-    assert(cpu.regs.reg8[static_cast<std::size_t>(CPU::Registers::REG8::B)] == 0x00); // unmodified
+    assert(cpu.regs.flag.test(CPU::Registers::Flags::Carry) == true);
+    assert(cpu.regs.reg8[static_cast<std::size_t>(CPU::Registers::REG8::B)] == 0x00);
     assert(cycles == 2);
     std::cout << "test_bit_setWhenBitClear passed\n";
 }
@@ -1000,12 +1359,12 @@ void test_bit_hlMemory_costsThreeCycles()
     Bus bus{};
     CPU cpu{bus};
     cpu.regs.set16(static_cast<std::size_t>(CPU::Registers::RP::HL), 0xC000);
-    bus.write(0xC000, 0x08); // bit 3 set
+    bus.write(0xC000, 0x08);
 
     std::uint8_t cycles = cpu.testBit(3, 6);
 
     assert(cpu.regs.flag.test(CPU::Registers::Flags::Zero) == false);
-    assert(cycles == 3); // NOT 4 -- this is the one CB (HL) op that's cheaper
+    assert(cycles == 3);
     std::cout << "test_bit_hlMemory_costsThreeCycles passed\n";
 }
 
@@ -1055,7 +1414,7 @@ void test_ldHLStackPointerPlusOffset_positive()
     Bus bus{};
     CPU cpu{bus};
     cpu.regs.PC = 0x0000;
-    bus.write(0x0000, 0x05); // +5
+    bus.write(0x0000, 0x05);
     cpu.regs.set16(static_cast<std::size_t>(CPU::Registers::RP::SP), 0xFFF8);
 
     std::uint8_t cycles = cpu.ldHLStackPointerPlusOffset();
@@ -1066,6 +1425,41 @@ void test_ldHLStackPointerPlusOffset_positive()
     std::cout << "test_ldHLStackPointerPlusOffset_positive passed\n";
 }
 
+// These two are written against CORRECT behavior and are expected to FAIL
+// against the current implementation, which still truncates the sum into
+// int16_t and masks the wrong bits for H/C. They exist to prove that bug
+// is still open -- fix ldHLStackPointerPlusOffset, then rerun.
+void test_ldHLStackPointerPlusOffset_halfCarry()
+{
+    Bus bus{};
+    CPU cpu{bus};
+    cpu.regs.PC = 0x0000;
+    bus.write(0x0000, 0x01);
+    cpu.regs.set16(static_cast<std::size_t>(CPU::Registers::RP::SP), 0x000F);
+
+    cpu.ldHLStackPointerPlusOffset();
+
+    assert(cpu.regs.flag.test(CPU::Registers::Flags::HalfCarry) == true);
+    assert(cpu.regs.flag.test(CPU::Registers::Flags::Carry) == false);
+    assert(cpu.regs.get16(static_cast<std::size_t>(CPU::Registers::RP::HL)) == 0x0010);
+    std::cout << "test_ldHLStackPointerPlusOffset_halfCarry passed\n";
+}
+
+void test_ldHLStackPointerPlusOffset_carry()
+{
+    Bus bus{};
+    CPU cpu{bus};
+    cpu.regs.PC = 0x0000;
+    bus.write(0x0000, 0x01);
+    cpu.regs.set16(static_cast<std::size_t>(CPU::Registers::RP::SP), 0x00FF);
+
+    cpu.ldHLStackPointerPlusOffset();
+
+    assert(cpu.regs.flag.test(CPU::Registers::Flags::Carry) == true);
+    assert(cpu.regs.get16(static_cast<std::size_t>(CPU::Registers::RP::HL)) == 0x0100);
+    std::cout << "test_ldHLStackPointerPlusOffset_carry passed\n";
+}
+
 // ---------- step(): x=3 paths ----------
 void test_step_retNZ_taken()
 {
@@ -1074,10 +1468,10 @@ void test_step_retNZ_taken()
     cpu.regs.PC = 0x0000;
     cpu.regs.set16(static_cast<std::size_t>(CPU::Registers::RP::SP), 0xFFFC);
     bus.write(0xFFFC, 0x34);
-    bus.write(0xFFFD, 0x12);                          // return address 0x1234
-    cpu.regs.flag.reset(CPU::Registers::Flags::Zero); // NZ condition true
+    bus.write(0xFFFD, 0x12);
+    cpu.regs.flag.reset(CPU::Registers::Flags::Zero);
 
-    bus.write(0x0000, 0xC0); // RET NZ
+    bus.write(0x0000, 0xC0);
 
     std::uint8_t cycles = cpu.step();
 
@@ -1092,7 +1486,7 @@ void test_step_jpNZ_taken()
     Bus bus{};
     CPU cpu{bus};
     cpu.regs.PC = 0x0000;
-    bus.write(0x0000, 0xC2); // JP NZ, nn
+    bus.write(0x0000, 0xC2);
     bus.write(0x0001, 0x34);
     bus.write(0x0002, 0x12);
     cpu.regs.flag.reset(CPU::Registers::Flags::Zero);
@@ -1110,15 +1504,13 @@ void test_step_callZ_taken()
     CPU cpu{bus};
     cpu.regs.PC = 0x0000;
     cpu.regs.set16(static_cast<std::size_t>(CPU::Registers::RP::SP), 0xFFFE);
-    bus.write(0x0000, 0xCC); // CALL Z, nn
+    bus.write(0x0000, 0xCC);
     bus.write(0x0001, 0x34);
     bus.write(0x0002, 0x12);
     cpu.regs.flag.set(CPU::Registers::Flags::Zero);
 
     std::uint8_t cycles = cpu.step();
 
-    // return address pushed is 0x0003 -- step()'s opcode-fetch increment
-    // plus callConditional's own two reads land PC at 0x0003 before the jump
     assert(bus.read(0xFFFD) == 0x00);
     assert(bus.read(0xFFFC) == 0x03);
     assert(cpu.regs.PC == 0x1234);
@@ -1132,11 +1524,10 @@ void test_step_rst_viaStep()
     CPU cpu{bus};
     cpu.regs.PC = 0x0150;
     cpu.regs.set16(static_cast<std::size_t>(CPU::Registers::RP::SP), 0xFFFE);
-    bus.write(0x0150, 0xC7); // RST 00h
+    bus.write(0x0150, 0xC7);
 
     std::uint8_t cycles = cpu.step();
 
-    // step()'s fetch increment moves PC to 0x0151 before restart() pushes it
     assert(cpu.regs.PC == 0x0000);
     assert(bus.read(0xFFFD) == 0x01);
     assert(bus.read(0xFFFC) == 0x51);
@@ -1150,7 +1541,7 @@ void test_step_rlca_viaStep()
     CPU cpu{bus};
     cpu.regs.PC = 0x0000;
     cpu.regs.reg8[static_cast<std::size_t>(CPU::Registers::REG8::A)] = 0x85;
-    bus.write(0x0000, 0x07); // RLCA
+    bus.write(0x0000, 0x07);
 
     std::uint8_t cycles = cpu.step();
 
@@ -1161,23 +1552,87 @@ void test_step_rlca_viaStep()
     std::cout << "test_step_rlca_viaStep passed\n";
 }
 
-void test_step_di_ei_viaStep()
+void test_step_di_disablesImmediately()
 {
     Bus bus{};
     CPU cpu{bus};
     cpu.regs.PC = 0x0000;
     bus.interrupts.IME = true;
     bus.write(0x0000, 0xF3); // DI
-    std::uint8_t cyclesDi = cpu.step();
-    assert(bus.interrupts.IME == false);
-    assert(cyclesDi == 1);
 
+    std::uint8_t cycles = cpu.step();
+
+    assert(bus.interrupts.IME == false); // no delay for DI, unlike EI
+    assert(cycles == 1);                 // DI(1) + handleInterrupts(0, nothing pending)
+    std::cout << "test_step_di_disablesImmediately passed\n";
+}
+
+void test_step_ei_delayedEffect()
+{
+    Bus bus{};
+    CPU cpu{bus};
     cpu.regs.PC = 0x0000;
+    bus.interrupts.IME = false;
     bus.write(0x0000, 0xFB); // EI
+    bus.write(0x0001, 0x00); // NOP -- the instruction EI's effect is delayed past
+
     std::uint8_t cyclesEi = cpu.step();
-    assert(bus.interrupts.IME == true);
-    assert(cyclesEi == 1);
-    std::cout << "test_step_di_ei_viaStep passed\n";
+    assert(bus.interrupts.IME == false); // not yet applied
+    assert(bus.interrupts.IMEPendingEnable == true);
+    assert(cyclesEi == 1); // EI(1) + handleInterrupts(0)
+
+    std::uint8_t cyclesNop = cpu.step();
+    assert(bus.interrupts.IME == true); // applied at the top of THIS step(),
+                                        // before NOP's own dispatch
+    assert(bus.interrupts.IMEPendingEnable == false);
+    assert(cyclesNop == 1);
+    std::cout << "test_step_ei_delayedEffect passed\n";
+}
+
+void test_step_nop_servicesInterruptAfterward()
+{
+    Bus bus{};
+    CPU cpu{bus};
+    cpu.regs.PC = 0x0000;
+    cpu.regs.set16(static_cast<std::size_t>(CPU::Registers::RP::SP), 0xFFFE);
+    bus.write(0x0000, 0x00); // NOP
+
+    bus.interrupts.IME = true;
+    bus.interrupts.IE.set(2); // Timer
+    bus.interrupts.IF.set(2); // Timer pending
+
+    std::uint8_t cycles = cpu.step();
+
+    // NOP fetch advances PC to 0x0001 *before* handleInterrupts() pushes it as
+    // the return address, then jumps to the Timer vector
+    assert(cpu.regs.PC == 0x0050);
+    assert(bus.read(0xFFFD) == 0x00);
+    assert(bus.read(0xFFFC) == 0x01);
+    assert(cpu.regs.get16(static_cast<std::size_t>(CPU::Registers::RP::SP)) == 0xFFFC);
+    assert(bus.interrupts.IF.test(2) == false);
+    assert(bus.interrupts.IME == false); // cleared while servicing
+    assert(cycles == 6);                 // NOP(1) + handleInterrupts servicing(5)
+    std::cout << "test_step_nop_servicesInterruptAfterward passed\n";
+}
+
+void test_step_invalidOpcode_throws()
+{
+    Bus bus{};
+    CPU cpu{bus};
+    cpu.regs.PC = 0x0000;
+    bus.write(0x0000, 0xD3); // x=3,y=2,z=3 -- one of the OUT-style opcodes removed on GB
+
+    bool threw = false;
+    try
+    {
+        cpu.step();
+    }
+    catch (const std::runtime_error &)
+    {
+        threw = true;
+    }
+    assert(threw);
+    std::cout << "test_step_invalidOpcode_throws passed\n";
 }
 
 int main()
@@ -1211,9 +1666,13 @@ int main()
     test_restart_pushesPCAndJumpsToVector();
 
     test_disableInterrupts();
-    test_enableInterrupts();
     test_jmpToHL();
     test_retFromInterrupt();
+
+    test_handleInterrupts_servicesVBlank();
+    test_handleInterrupts_priorityOrder();
+    test_handleInterrupts_doesNothingWhenIMEFalse();
+    test_handleInterrupts_doesNothingWhenNoneEnabled();
 
     test_incReg_halfCarry();
     test_decReg_wrapsToFF();
@@ -1258,14 +1717,44 @@ int main()
     test_clearBit_hlMemoryOperand();
     test_ldSPToHL();
     test_ldHLStackPointerPlusOffset_positive();
+    test_ldHLStackPointerPlusOffset_halfCarry();
+    test_ldHLStackPointerPlusOffset_carry();
 
     test_step_retNZ_taken();
     test_step_jpNZ_taken();
     test_step_callZ_taken();
     test_step_rst_viaStep();
     test_step_rlca_viaStep();
-    test_step_di_ei_viaStep();
 
+    test_step_di_disablesImmediately();
+    test_step_ei_delayedEffect();
+    test_step_nop_servicesInterruptAfterward();
+    test_step_invalidOpcode_throws();
+
+    test_enableInterrupts_setsPendingNotImmediate();
+
+    test_ldIndirectBCA();
+    test_ldAIndirectBC();
+    test_ldIndirectDEA();
+    test_ldAIndirectDE();
+
+    test_loadHighAddressImmediate();
+    test_loadAHighAddressImmediate();
+    test_loadHighAddressC();
+    test_loadAHighAddressC();
+    test_loadAddressA();
+    test_loadAAddress();
+
+    test_addSPOffset_positive();
+    test_addSPOffset_halfCarry();
+    test_addSPOffset_carry();
+    test_addSPOffset_negative();
+
+    test_jmpImmediate();
+    test_callImmediate_then_returnUnconditional();
+
+    test_halt_doesNotTouchIME();
+    test_stop_doesNotTouchIME();
     std::cout << "all tests passed\n";
     return 0;
 }
