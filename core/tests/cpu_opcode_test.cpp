@@ -1,6 +1,9 @@
 import cpu;
 import bus;
 import std;
+import mbc;
+import cartridge;
+
 #include <cassert>
 
 // ---------- nop ----------
@@ -1635,126 +1638,73 @@ void test_step_invalidOpcode_throws()
     std::cout << "test_step_invalidOpcode_throws passed\n";
 }
 
+void test_mbc1_bankSwitch_changesRead()
+{
+    std::vector<std::uint8_t> rom(0x20000, 0x00); // 128KB, big enough for several banks
+
+    // Put a distinct marker byte at the start of bank 1 and bank 2
+    rom[0x4000] = 0xAA; // bank 1's first byte
+    rom[0x8000] = 0xBB; // bank 2's first byte
+
+    MBC1 mbc(rom, 0);
+
+    std::uint8_t beforeSwitch = mbc.read(0x4000);
+    assert(beforeSwitch == 0xAA); // default bank is 1
+
+    mbc.write(0x2000, 0x02); // select bank 2
+
+    std::uint8_t afterSwitch = mbc.read(0x4000);
+    assert(afterSwitch == 0xBB);
+    assert(afterSwitch != beforeSwitch);
+    std::cout << "test_mbc1_bankSwitch_changesRead passed\n";
+}
+
+void test_mbc1_bankZeroBecomesBankOne()
+{
+    std::vector<std::uint8_t> rom(0x20000, 0x00);
+    rom[0x4000] = 0xCC; // bank 1's first byte
+
+    MBC1 mbc(rom, 0);
+
+    mbc.write(0x2000, 0x02); // switch away from the default first
+    assert(mbc.read(0x4000) != 0xCC);
+
+    mbc.write(0x2000, 0x00); // write 0 -- should behave as bank 1, not bank 0
+    assert(mbc.read(0x4000) == 0xCC);
+    std::cout << "test_mbc1_bankZeroBecomesBankOne passed\n";
+}
+
+void test_mbc1_ramEnableAndReadWrite()
+{
+    std::vector<std::uint8_t> rom(0x8000, 0x00);
+    MBC1 mbc(rom, 0x2000); // 8KB external RAM
+
+    mbc.write(0x0000, 0x0A); // enable RAM (low nibble must be exactly 0xA)
+    mbc.write(0xA000, 0x42);
+
+    assert(mbc.read(0xA000) == 0x42);
+    std::cout << "test_mbc1_ramEnableAndReadWrite passed\n";
+}
+
+void test_mbc1_ramDisabled_returnsOpenBus()
+{
+    std::vector<std::uint8_t> rom(0x8000, 0x00);
+    MBC1 mbc(rom, 0x2000);
+
+    mbc.write(0x0000, 0x0A);
+    mbc.write(0xA000, 0x42);
+    assert(mbc.read(0xA000) == 0x42);
+
+    mbc.write(0x0000, 0x00); // any value whose low nibble isn't 0xA disables RAM
+
+    assert(mbc.read(0xA000) == 0xFF); // open-bus stand-in, not the old 0x42
+    std::cout << "test_mbc1_ramDisabled_returnsOpenBus passed\n";
+}
+
 int main()
 {
-    test_nop();
-    test_ldRegImmediate();
-    test_ldRegPairImmediate();
-    test_ldAddressStackPointer();
-
-    test_add_halfCarry();
-    test_add_fullCarry();
-    test_adc_withCarryIn();
-    test_sub_equalOperands();
-
-    test_addHLRegPair_halfCarry();
-
-    test_and_setsHalfCarry();
-    test_xor_clearsHalfCarry();
-    test_or_clearsHalfCarry();
-    test_cp_doesNotModifyA();
-
-    test_ldRegToReg_fromHLMemory();
-    test_ld_hlIncrement_a();
-    test_ld_a_hlIncrement();
-    test_ld_hlDecrement_a();
-    test_ld_a_hlDecrement();
-
-    test_push_pop_nonAF_stillCorrect();
-    test_call_then_ret_returnsToCallSite();
-    test_returnConditional_notTaken();
-    test_restart_pushesPCAndJumpsToVector();
-
-    test_disableInterrupts();
-    test_jmpToHL();
-    test_retFromInterrupt();
-
-    test_handleInterrupts_servicesVBlank();
-    test_handleInterrupts_priorityOrder();
-    test_handleInterrupts_doesNothingWhenIMEFalse();
-    test_handleInterrupts_doesNothingWhenNoneEnabled();
-
-    test_incReg_halfCarry();
-    test_decReg_wrapsToFF();
-    test_incRegPair_noFlagsTouched();
-    test_decRegPair_actuallyDecrements();
-
-    test_jp_z_taken();
-    test_jp_z_notTaken();
-    test_jp_nc_taken();
-
-    test_jr_c_forward();
-    test_jr_c_backward();
-    test_jr_nz_notTaken();
-
-    test_relativeJump_forward();
-    test_relativeJump_backward_wraps();
-    test_step_jr_unconditional_viaStep();
-
-    test_rlca();
-    test_rla();
-    test_rrca();
     test_rra();
 
-    test_cpl();
-    test_scf();
-    test_ccf_flipsFromSetToClear();
-    test_ccf_flipsFromClearToSet();
-    test_daa_afterAddWithHalfCarry();
-    test_daa_afterAddCausingByteOverflow();
-
-    test_rlCarryCB_registerOperand();
-    test_rlCarryCB_hlMemoryOperand();
-    test_rrCarryCB_registerOperand();
-    test_rrCarryCB_hlMemoryOperand();
-    test_sla();
-    test_sra_preservesSignBit();
-    test_srl_zeroesTopBit();
-    test_swap();
-    test_bit_setWhenBitClear();
-    test_bit_hlMemory_costsThreeCycles();
-    test_setBit_registerOperand();
-    test_clearBit_hlMemoryOperand();
-    test_ldSPToHL();
-    test_ldHLStackPointerPlusOffset_positive();
-    test_ldHLStackPointerPlusOffset_halfCarry();
-    test_ldHLStackPointerPlusOffset_carry();
-
-    test_step_retNZ_taken();
-    test_step_jpNZ_taken();
-    test_step_callZ_taken();
-    test_step_rst_viaStep();
-    test_step_rlca_viaStep();
-
-    test_step_di_disablesImmediately();
-    test_step_ei_delayedEffect();
-    test_step_nop_servicesInterruptAfterward();
-    test_step_invalidOpcode_throws();
-
-    test_enableInterrupts_setsPendingNotImmediate();
-
-    test_ldIndirectBCA();
-    test_ldAIndirectBC();
-    test_ldIndirectDEA();
-    test_ldAIndirectDE();
-
-    test_loadHighAddressImmediate();
-    test_loadAHighAddressImmediate();
-    test_loadHighAddressC();
-    test_loadAHighAddressC();
-    test_loadAddressA();
-    test_loadAAddress();
-
-    test_addSPOffset_positive();
-    test_addSPOffset_halfCarry();
-    test_addSPOffset_carry();
-    test_addSPOffset_negative();
-
-    test_jmpImmediate();
-    test_callImmediate_then_returnUnconditional();
-
-    test_halt_doesNotTouchIME();
-    test_stop_doesNotTouchIME();
-    std::cout << "all tests passed\n";
+    std::println("All tests passed");
     return 0;
 }

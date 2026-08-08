@@ -12,6 +12,10 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -stdlib=libc++")
 set(CMAKE_CXX_COMPILER /usr/bin/clang++)
 
+set(SDL_INSTALL OFF CACHE BOOL "" FORCE)
+
+add_subdirectory(external/SDL)
+
 project(GameBoyEmu
     VERSION 0.1.0
     LANGUAGES CXX
@@ -21,6 +25,9 @@ add_library(GameBoyCore)
 target_sources(GameBoyCore
     PRIVATE
         core/cpu_opcodes.cpp
+        core/mbc/mbc0.cpp
+        core/mbc/mbc1.cpp
+        core/ppu.cpp
     PUBLIC
         FILE_SET cxx_modules TYPE CXX_MODULES
         BASE_DIRS
@@ -56,14 +63,20 @@ set_target_properties(GameBoyEmu PROPERTIES
 
 # ---- test binary ----
 add_executable(GameBoyTests core/tests/cpu_opcode_test.cpp)
-target_link_libraries(GameBoyTests PRIVATE GameBoyCore)
+target_link_libraries(GameBoyTests PRIVATE GameBoyCore SDL3::SDL3)
 target_compile_features(GameBoyTests PRIVATE cxx_std_23)
 set_target_properties(GameBoyTests PROPERTIES
     CXX_MODULE_STD ON
     CXX_EXTENSIONS OFF
 )
 
-
+add_executable(BlarggRunner core/tests/blargg_runner.cpp)
+target_link_libraries(BlarggRunner PRIVATE GameBoyCore)
+target_compile_features(BlarggRunner PRIVATE cxx_std_23)
+set_target_properties(BlarggRunner PROPERTIES
+    CXX_MODULE_STD ON
+    CXX_EXTENSIONS OFF
+)
 
 
 set_source_files_properties(

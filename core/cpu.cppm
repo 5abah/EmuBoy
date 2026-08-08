@@ -76,6 +76,7 @@ export class CPU
     Bus &bus;
     Registers regs{};
     CPU(Bus &busGet) : bus{busGet} {};
+    bool halted{};
 
     std::uint8_t step();
     std::uint8_t nop();
@@ -106,6 +107,7 @@ export class CPU
     std::uint8_t ldSPToHL();                                                 // LD SP, HL
     std::uint8_t ldHLStackPointerPlusOffset();                               // LD HL, SP+e
     std::uint8_t ldAddressStackPointer();                                    // LD (nn), SP
+    std::uint8_t accumulatorImmediateArithmetic(std::uint8_t aluIndex);
     std::uint8_t accumulatorRegisterArithmetic(std::uint8_t aluIndex,
                                                std::uint8_t regIndex);  // ADD/ADC/SUB/SBC/AND/XOR/OR/CP A, r
     std::uint8_t addHLRegPair(std::uint8_t regIndexP);                  // ADD HL, rr
@@ -241,6 +243,17 @@ std::uint8_t CPU::step()
         bus.interrupts.IMEPendingEnable = !bus.interrupts.IMEPendingEnable;
     }
 
+    if (halted)
+    {
+        if ((bus.interrupts.IE.to_ulong() & bus.interrupts.IF.to_ulong()) != 0)
+        {
+            halted = false;
+        }
+        else
+        {
+            return 1;
+        }
+    }
     switch (x)
     {
     case 0:
@@ -403,6 +416,7 @@ std::uint8_t CPU::step()
         cycleCount += accumulatorRegisterArithmetic(y, z);
         cycleCount += handleInterrupts();
         break;
+
     case 3:
         switch (z)
         {
@@ -498,17 +512,63 @@ std::uint8_t CPU::step()
                 cycleCount += jmpImmediate();
                 cycleCount += handleInterrupts();
                 break;
-            case 1:
-                // TODO: CB-prefixed dispatch -- do this only after step 1
-                // (fixing rotateLeftCB/rotateRightCB) is done.
+            case 1: {
+                std::uint8_t cbOpcode = bus.read(regs.PC++);
+                std::uint8_t x2 = (cbOpcode & 0xC0) >> 6;
+                std::uint8_t y2 = (cbOpcode & 0x38) >> 3;
+                std::uint8_t z2 = cbOpcode & 0x7;
+
+                switch (x2)
+                {
+                case 0:
+                    switch (y2)
+                    {
+                    case 0:
+                        cycleCount += rotateLeftCB(z2);
+                        break;
+                    case 1:
+                        cycleCount += rotateRightCB(z2);
+                        break;
+                    case 2:
+                        cycleCount += rotateLeftCarryCB(z2);
+                        break;
+                    case 3:
+                        cycleCount += rotateRightCarryCB(z2);
+                        break;
+                    case 4:
+                        cycleCount += shiftLeftArithmeticCB(z2);
+                        break;
+                    case 5:
+                        cycleCount += shiftRightArithmeticCB(z2);
+                        break;
+                    case 6:
+                        cycleCount += swapNibblesCB(z2);
+                        break;
+                    case 7:
+                        cycleCount += shiftRightLogicalCB(z2);
+                        break;
+                    }
+                    break;
+                case 1:
+                    cycleCount += testBit(y2, z2);
+                    break;
+                case 2:
+                    cycleCount += clearBit(y2, z2);
+                    break;
+                case 3:
+                    cycleCount += setBit(y2, z2);
+                    break;
+                }
                 cycleCount += handleInterrupts();
                 break;
+            }
             case 2:
             case 3:
             case 4:
             case 5:
                 cycleCount += handleInterrupts();
-                throw std::runtime_error("Invalid Opcode!"); // removed on GB
+                throw std::runtime_error(
+                    std::format("Invalid Opcode 0x{:02X} at PC 0x{:04X}", opcode, regs.PC)); // removed on GB
             case 6:
                 cycleCount += disableInterrupts();
                 cycleCount += handleInterrupts();
@@ -534,7 +594,8 @@ std::uint8_t CPU::step()
             case 6:
             case 7:
                 cycleCount += handleInterrupts();
-                throw std::runtime_error("Invalid Opcode!"); // removed on GB
+                throw std::runtime_error(
+                    std::format("Invalid Opcode 0x{:02X} at PC 0x{:04X}", opcode, regs.PC)); // removed on GB
             }
             break;
         case 5:
@@ -551,12 +612,12 @@ std::uint8_t CPU::step()
             else
             {
                 cycleCount += handleInterrupts();
-                throw std::runtime_error("Invalid Opcode!"); // removed on GB
+                throw std::runtime_error(
+                    std::format("Invalid Opcode 0x{:02X} at PC 0x{:04X}", opcode, regs.PC)); // removed on GB
             }
             break;
         case 6:
-            // TODO: alu[y] n -- still needs a function/overload that fetches
-            // an immediate byte and feeds it as the operand. Not done yet.
+            cycleCount += accumulatorImmediateArithmetic(y);
             cycleCount += handleInterrupts();
             break;
         case 7:
